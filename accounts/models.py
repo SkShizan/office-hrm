@@ -43,6 +43,10 @@ class User(AbstractUser):
     section = models.CharField(max_length=20, choices=SECTION_CHOICES, null=True, blank=True)
     role = models.CharField(max_length=20, choices=ROLE_CHOICES, default='Employee')
     designation = models.CharField(max_length=100, null=True, blank=True)
+
+    monthly_salary = models.DecimalField(max_digits=10, decimal_places=2, default=0.00)
+    esi_percentage = models.DecimalField(max_digits=5, decimal_places=2, default=0.75, help_text="Percentage (e.g., 0.75)")
+    professional_tax = models.DecimalField(max_digits=10, decimal_places=2, default=0.00, help_text="Fixed Amount (e.g., 120)")
     
     is_approved = models.BooleanField(default=False)
     

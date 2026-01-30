@@ -49,7 +49,6 @@
         position: relative;
     }
     
-    /* Vertical Divider Logic */
     .stat-item:not(:last-child)::after {
         content: "";
         position: absolute;
@@ -81,8 +80,9 @@
         background: white;
         border-radius: var(--radius-md);
         box-shadow: var(--shadow-card);
-        overflow: hidden; /* Ensures corners clip correctly */
+        overflow: hidden;
         border: 1px solid rgba(0,0,0,0.05);
+        margin-bottom: 40px;
     }
 
     .calendar-header {
@@ -102,7 +102,7 @@
     .calendar-body {
         display: grid;
         grid-template-columns: repeat(7, 1fr);
-        background: var(--c-beige); /* Creates the lines between cells via Gap */
+        background: var(--c-beige);
         gap: 1px; 
     }
 
@@ -119,7 +119,6 @@
     .cal-cell.empty { background: #FCFCFC; }
     .cal-cell:hover { background: #FFFEFA; }
 
-    /* Date Styling */
     .cell-header {
         display: flex;
         justify-content: space-between;
@@ -133,8 +132,7 @@
     }
     .day-name { font-size: 0.75rem; color: #999; }
 
-    /* --- STATUS INDICATORS --- */
-    /* We use distinct colors but soften them to match the theme */
+    /* Status Colors */
     .status-Present { border-left: 4px solid #2E7D32; background: linear-gradient(to right, #F1F8E9, white 30%); }
     .status-Absent  { border-left: 4px solid #D32F2F; background: linear-gradient(to right, #FFEBEE, white 30%); }
     .status-Leave   { border-left: 4px solid var(--c-orange); background: linear-gradient(to right, #FFF3E0, white 30%); }
@@ -153,7 +151,7 @@
     .tag-Leave   { color: var(--c-orange); }
     .tag-WFH     { color: #0288D1; }
 
-    /* --- FORM CONTROLS INSIDE CALENDAR --- */
+    /* Controls */
     .calendar-controls select, 
     .calendar-controls input[type="time"] {
         width: 100%;
@@ -178,9 +176,97 @@
         padding: 2px 6px;
         border-radius: 4px;
         align-self: flex-start;
-        margin-top: auto; /* Pushes to bottom */
+        margin-top: auto;
     }
 
+    /* --- PAYROLL & SALARY SECTION (NEW) --- */
+    .salary-wrapper {
+        background: white;
+        border-radius: var(--radius-md);
+        box-shadow: var(--shadow-card);
+        overflow: hidden;
+        border: 1px solid rgba(0,0,0,0.05);
+    }
+
+    .salary-header {
+        background: var(--c-charcoal);
+        color: var(--c-cream);
+        padding: 15px 25px;
+        font-family: 'Outfit', sans-serif;
+        font-weight: 600;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+
+    .salary-body {
+        display: grid;
+        grid-template-columns: 1.2fr 0.8fr; /* Breakdown takes more space */
+        gap: 0;
+    }
+
+    .salary-breakdown {
+        padding: 30px;
+    }
+
+    .salary-settings {
+        background: #fafafa;
+        padding: 30px;
+        border-left: 1px solid #eee;
+    }
+
+    .pay-row {
+        display: flex;
+        justify-content: space-between;
+        margin-bottom: 12px;
+        font-size: 0.95rem;
+        color: var(--c-charcoal);
+    }
+    
+    .pay-row.sub-text { font-size: 0.85rem; color: #999; margin-top: -8px; margin-bottom: 15px; }
+    .pay-row.deduction { color: #D32F2F; }
+    .pay-row.gross { font-weight: 700; border-top: 1px dashed #ddd; padding-top: 10px; margin-top: 10px; }
+    
+    .net-pay-box {
+        background: #F1F8E9;
+        border: 1px solid #C5E1A5;
+        border-radius: var(--radius-sm);
+        padding: 15px 20px;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-top: 20px;
+        color: #2E7D32;
+    }
+    .net-label { font-weight: 600; text-transform: uppercase; font-size: 0.9rem; }
+    .net-amount { font-family: 'Outfit', sans-serif; font-size: 1.5rem; font-weight: 700; }
+
+    /* Payroll Form Inputs */
+    .form-group-pay { margin-bottom: 15px; }
+    .form-group-pay label { display: block; font-size: 0.8rem; font-weight: 600; margin-bottom: 5px; color: #666; }
+    .form-group-pay input {
+        width: 100%; padding: 10px; border: 1px solid var(--c-beige); border-radius: 6px;
+        font-family: 'Outfit', sans-serif; transition: all 0.2s;
+    }
+    .form-group-pay input:focus { border-color: var(--c-orange); outline: none; }
+    
+    .btn-save-pay {
+        width: 100%; background: var(--c-charcoal); color: white; border: none; padding: 12px;
+        border-radius: 6px; font-weight: 600; cursor: pointer; transition: background 0.2s;
+    }
+    .btn-save-pay:hover { background: black; }
+
+    /* Empty State */
+    .salary-empty {
+        padding: 40px; text-align: center; color: #999;
+    }
+
+    @media (max-width: 900px) {
+        .calendar-header, .calendar-body { overflow-x: auto; min-width: 700px; }
+        .calendar-wrapper { overflow-x: auto; }
+        .salary-body { grid-template-columns: 1fr; }
+        .salary-settings { border-left: none; border-top: 1px solid #eee; }
+    }
 </style>
 
 <div class="page-header">
@@ -277,6 +363,119 @@
             {% endif %}
         {% endfor %}
     </div>
+</div>
+
+<div class="salary-wrapper">
+    <div class="salary-header">
+        <span><i class="fa-solid fa-file-invoice-dollar"></i> Estimated Payroll</span>
+        {% if salary_data %}
+            <span style="opacity: 0.8; font-weight: 400; font-size: 0.9rem;">Based on {{ month_name }} Attendance</span>
+        {% endif %}
+    </div>
+
+    {% if salary_data %}
+    <div class="salary-body">
+        
+        <div class="salary-breakdown">
+            <h4 style="font-family: 'Outfit'; margin-bottom: 20px; color: var(--c-charcoal);">Salary Slip Estimate</h4>
+            
+            <div class="pay-row">
+                <span>Base Monthly Salary</span>
+                <strong>₹{{ salary_data.base_salary }}</strong>
+            </div>
+            <div class="pay-row sub-text">
+                Calculated Daily Rate: ₹{{ salary_data.per_day }}
+            </div>
+
+            <div class="pay-row deduction">
+                <span>Absent Deduction ({{ salary_data.absent_count }} Days)</span>
+                <span>- ₹{{ salary_data.absent_deduction }}</span>
+            </div>
+
+            <div class="pay-row gross">
+                <span>Gross Salary</span>
+                <span>₹{{ salary_data.gross_salary }}</span>
+            </div>
+
+            <div class="pay-row deduction" style="margin-top: 10px;">
+                <span>ESI Deduction ({{ salary_data.esi_pct }}%)</span>
+                <span>- ₹{{ salary_data.esi_amount }}</span>
+            </div>
+
+            <div class="pay-row deduction">
+                <span>Professional Tax</span>
+                <span>- ₹{{ salary_data.p_tax }}</span>
+            </div>
+
+            <div class="net-pay-box">
+                <span class="net-label">Net Payable</span>
+                <span class="net-amount">₹{{ salary_data.net_salary }}</span>
+            </div>
+            
+            <p style="font-size: 0.75rem; color: #999; margin-top: 15px;">
+                * This calculation is dynamic based on the current attendance status marked in the calendar above.
+            </p>
+        </div>
+
+        {% if is_manager %}
+            <div class="salary-settings">
+                <h4 style="font-family: 'Outfit'; margin-bottom: 20px; color: var(--c-charcoal);">Payroll Configuration</h4>
+                
+                <form method="POST">
+                    {% csrf_token %}
+                    <input type="hidden" name="update_salary" value="true">
+                    
+                    <div class="form-group-pay">
+                        <label>Monthly Base Salary (₹)</label>
+                        <input type="number" step="0.01" name="monthly_salary" value="{{ target_user.monthly_salary }}" required>
+                    </div>
+
+                    <div class="form-group-pay">
+                        <label>ESI Percentage (%)</label>
+                        <input type="number" step="0.01" name="esi_percentage" value="{{ target_user.esi_percentage }}" required>
+                    </div>
+
+                    <div class="form-group-pay">
+                        <label>Professional Tax (Fixed ₹)</label>
+                        <input type="number" step="0.01" name="professional_tax" value="{{ target_user.professional_tax }}" required>
+                    </div>
+
+                    <button type="submit" class="btn-save-pay">
+                        <i class="fa-solid fa-check"></i> Update Payroll
+                    </button>
+                </form>
+            </div>
+        {% else %}
+            <div class="salary-settings" style="display: flex; align-items: center; justify-content: center; text-align: center;">
+                <div style="opacity: 0.5;">
+                    <i class="fa-solid fa-shield-halved" style="font-size: 2rem; margin-bottom: 10px;"></i>
+                    <p>Payroll settings are managed by HR/Admin.</p>
+                </div>
+            </div>
+        {% endif %}
+        
+    </div>
+    {% else %}
+        <div class="salary-empty">
+            <i class="fa-solid fa-coins" style="font-size: 2.5rem; margin-bottom: 15px; opacity: 0.3;"></i>
+            <h3>Salary Not Configured</h3>
+            
+            {% if is_manager %}
+                <p style="margin-bottom: 20px;">Initialize payroll details to see the breakdown.</p>
+                <form method="POST" style="max-width: 300px; margin: 0 auto;">
+                    {% csrf_token %}
+                    <input type="hidden" name="update_salary" value="true">
+                    <div class="form-group-pay" style="text-align: left;">
+                        <label>Enter Base Salary</label>
+                        <input type="number" name="monthly_salary" placeholder="e.g. 25000" required>
+                    </div>
+                    <button type="submit" class="btn-save-pay">Initialize</button>
+                </form>
+            {% else %}
+                <p>Please contact HR to update your payroll details.</p>
+            {% endif %}
+        </div>
+    {% endif %}
 </div>
 
 {% endblock %}

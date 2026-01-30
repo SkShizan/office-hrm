@@ -11,6 +11,7 @@ from .models import LeaveRequest, LeaveBalance, AttendanceRecord, PublicHoliday
 from .forms import LeaveApplicationForm, LeaveAllocationForm
 from accounts.models import Team # Import Team
 from django.db.models import Q
+from decimal import Decimal # <--- Import Decimal for precise math
 
 # ==========================================
 # 1. CORE DASHBOARD ROUTING
@@ -311,7 +312,6 @@ def view_attendance(request, user_id):
         if request.user.role in ['Manager', 'TL'] and target_user.role == 'Employee':
             is_manager = True
     
-    # SECURITY: If not a manager and not viewing own profile -> Kick out
     if not is_manager and request.user != target_user:
          messages.error(request, "Access Denied. You are not the manager of this user.")
          return redirect('dashboard')
@@ -330,30 +330,41 @@ def view_attendance(request, user_id):
     start_index = (first_weekday + 1) % 7 
 
     # ==========================================
-    # 3. MANAGER ACTIONS (EDIT ATTENDANCE)
+    # 3. MANAGER ACTIONS (EDIT ATTENDANCE & SALARY)
     # ==========================================
     if request.method == 'POST' and is_manager:
-        date_str = request.POST.get('date')
-        new_status = request.POST.get('status')
-        time_str = request.POST.get('login_time')
-        
-        new_time = None
-        if time_str:
-            try:
-                new_time = datetime.strptime(time_str, '%H:%M').time()
-            except ValueError:
-                pass 
-        
-        AttendanceRecord.objects.update_or_create(
-            user=target_user,
-            date=date_str,
-            defaults={
-                'status': new_status, 
-                'login_time': new_time, 
-                'marked_by': request.user
-            }
-        )
-        messages.success(request, f"Attendance updated for {date_str}")
+        # --- A. UPDATE PAYROLL DETAILS ---
+        if 'update_salary' in request.POST:
+            target_user.monthly_salary = Decimal(request.POST.get('monthly_salary', 0))
+            target_user.esi_percentage = Decimal(request.POST.get('esi_percentage', 0))
+            target_user.professional_tax = Decimal(request.POST.get('professional_tax', 0))
+            target_user.save()
+            messages.success(request, "Payroll details updated.")
+
+        # --- B. UPDATE ATTENDANCE ---
+        elif 'date' in request.POST:
+            date_str = request.POST.get('date')
+            new_status = request.POST.get('status')
+            time_str = request.POST.get('login_time')
+            
+            new_time = None
+            if time_str:
+                try:
+                    new_time = datetime.strptime(time_str, '%H:%M').time()
+                except ValueError:
+                    pass 
+            
+            AttendanceRecord.objects.update_or_create(
+                user=target_user,
+                date=date_str,
+                defaults={
+                    'status': new_status, 
+                    'login_time': new_time, 
+                    'marked_by': request.user
+                }
+            )
+            messages.success(request, f"Attendance updated for {date_str}")
+            
         return redirect(f"{request.path}?year={year}&month={month}")
 
     # ==========================================
@@ -421,16 +432,52 @@ def view_attendance(request, user_id):
             'day_name': current_date.strftime("%A")
         })
 
+    # ==========================================
+    # 5. PAYROLL CALCULATION LOGIC
+    # ==========================================
+    salary_data = {}
+    base_salary = target_user.monthly_salary
+    
+    if base_salary > 0:
+        # A. Per Day Salary
+        per_day_salary = base_salary / Decimal(num_days)
+        
+        # B. Deduction for Absent Days
+        absent_deduction = per_day_salary * Decimal(stats['absent'])
+        
+        gross_salary = base_salary - absent_deduction
+        
+        # C. ESI Deduction (Percentage of Gross)
+        esi_deduction = (gross_salary * target_user.esi_percentage) / Decimal(100)
+        
+        # D. Professional Tax (Fixed)
+        p_tax = target_user.professional_tax
+        
+        # E. Final Net Salary
+        net_salary = gross_salary - esi_deduction - p_tax
+
+        salary_data = {
+            'base_salary': round(base_salary, 2),
+            'per_day': round(per_day_salary, 2),
+            'absent_count': stats['absent'],
+            'absent_deduction': round(absent_deduction, 2),
+            'gross_salary': round(gross_salary, 2),
+            'esi_pct': target_user.esi_percentage,
+            'esi_amount': round(esi_deduction, 2),
+            'p_tax': round(p_tax, 2),
+            'net_salary': round(net_salary, 2)
+        }
+
     return render(request, 'dashboard/view_attendance.html', {
         'target_user': target_user,
         'month_days': month_days,
         'year': year,
         'month': month,
         'month_name': calendar.month_name[month],
-        'is_manager': is_manager, # Passes True if HR, Reports_To, or TL
-        'stats': stats
+        'is_manager': is_manager, 
+        'stats': stats,
+        'salary_data': salary_data # <--- Passed to template
     })
-
 
 # dashboard/views.py
 

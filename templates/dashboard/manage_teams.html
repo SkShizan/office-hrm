@@ -1,0 +1,22 @@
+{% extends 'base.html' %}
+{% block content %}
+<h2>Manage Teams</h2>
+<div class="card">
+    <form method="POST">
+        {% csrf_token %}
+        <label>Create New Team:</label>
+        <input type="text" name="team_name" placeholder="e.g. Team Alpha" required>
+        <button type="submit" style="margin-top:10px;">Create Team</button>
+    </form>
+</div>
+
+<h3>Existing Teams</h3>
+<ul>
+    {% for team in teams %}
+        <li>{{ team.name }}</li>
+    {% empty %}
+        <li>No teams created yet.</li>
+    {% endfor %}
+</ul>
+<a href="{% url 'hr_dashboard' %}">Back to Dashboard</a>
+{% endblock %}

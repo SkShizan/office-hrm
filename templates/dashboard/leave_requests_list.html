@@ -1,0 +1,240 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<style>
+    /* --- PAGE HEADER --- */
+    .page-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 25px;
+        padding-bottom: 15px;
+        border-bottom: 2px solid var(--c-beige);
+    }
+    .page-title {
+        font-family: 'Outfit', sans-serif;
+        font-size: 1.8rem;
+        color: var(--c-charcoal);
+    }
+    .count-badge {
+        background: var(--c-orange);
+        color: white;
+        padding: 4px 12px;
+        border-radius: 20px;
+        font-size: 0.9rem;
+        font-weight: 700;
+        vertical-align: middle;
+        margin-left: 10px;
+    }
+
+    /* --- REQUEST CARD --- */
+    .request-list {
+        display: flex;
+        flex-direction: column;
+        gap: 20px;
+    }
+
+    .request-card {
+        background: white;
+        border-radius: var(--radius-md);
+        box-shadow: var(--shadow-card);
+        display: flex;
+        flex-direction: row; /* Side-by-side layout for desktop */
+        overflow: hidden;
+        border: 1px solid rgba(0,0,0,0.05);
+        transition: transform 0.2s;
+    }
+    .request-card:hover {
+        transform: translateY(-2px);
+    }
+
+    /* Left Side: Status & Type */
+    .card-indicator {
+        width: 6px;
+        background-color: var(--c-orange); /* Orange = Pending Attention */
+    }
+
+    .card-content {
+        padding: 25px;
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        gap: 15px;
+    }
+
+    /* Content Typography */
+    .req-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+    }
+    .user-name {
+        font-family: 'Outfit', sans-serif;
+        font-size: 1.3rem;
+        font-weight: 700;
+        color: var(--c-charcoal);
+    }
+    .leave-badge {
+        background: var(--c-beige);
+        color: var(--c-charcoal);
+        padding: 4px 10px;
+        border-radius: 4px;
+        font-size: 0.8rem;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+
+    /* Metadata Grid */
+    .meta-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+        gap: 15px;
+        background: #fafafa;
+        padding: 15px;
+        border-radius: var(--radius-sm);
+        border: 1px dashed #ddd; /* Ticket feel */
+    }
+    .meta-item {
+        font-size: 0.9rem;
+    }
+    .meta-label {
+        display: block;
+        color: var(--c-text-muted);
+        font-size: 0.75rem;
+        margin-bottom: 2px;
+    }
+    .meta-value {
+        font-weight: 600;
+        color: var(--c-charcoal);
+    }
+
+    /* Reason Block */
+    .reason-box {
+        font-size: 0.95rem;
+        color: #555;
+        line-height: 1.5;
+        font-style: italic;
+    }
+
+    /* --- ACTION BUTTONS --- */
+    .action-area {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding-left: 20px;
+        border-left: 1px solid #eee;
+        background: #fdfdfd;
+        padding: 20px;
+        min-width: 200px;
+        justify-content: center;
+        flex-direction: column;
+    }
+
+    .btn-approve {
+        background-color: #2E7D32;
+        color: white;
+        width: 100%;
+        text-align: center;
+    }
+    .btn-approve:hover { background-color: #1B5E20; }
+
+    .btn-deny {
+        background-color: transparent;
+        color: #D32F2F;
+        border: 2px solid #D32F2F;
+        width: 100%;
+        text-align: center;
+    }
+    .btn-deny:hover {
+        background-color: #D32F2F;
+        color: white;
+    }
+
+    /* --- RESPONSIVE --- */
+    @media (max-width: 768px) {
+        .request-card { flex-direction: column; }
+        .action-area {
+            border-left: none;
+            border-top: 1px solid #eee;
+            flex-direction: row;
+        }
+    }
+
+    /* --- EMPTY STATE --- */
+    .empty-state {
+        text-align: center;
+        padding: 60px 20px;
+        color: var(--c-text-muted);
+    }
+    .empty-icon {
+        font-size: 3rem;
+        color: var(--c-beige);
+        margin-bottom: 15px;
+    }
+</style>
+
+<div class="page-header">
+    <h2 class="page-title">
+        Pending Requests
+        {% if pending_leaves %}
+            <span class="count-badge">{{ pending_leaves|length }}</span>
+        {% endif %}
+    </h2>
+</div>
+
+<div class="request-list">
+    {% for leave in pending_leaves %}
+        <div class="request-card">
+            <div class="card-indicator"></div>
+
+            <div class="card-content">
+                <div class="req-header">
+                    <div class="user-name">
+                        <i class="fa-regular fa-circle-user"></i> {{ leave.user.username }}
+                    </div>
+                    <span class="leave-badge">{{ leave.leave_type }}</span>
+                </div>
+
+                <div class="meta-grid">
+                    <div class="meta-item">
+                        <span class="meta-label">Duration</span>
+                        <div class="meta-value">
+                            {{ leave.start_date|date:"M d" }} <i class="fa-solid fa-arrow-right-long" style="font-size:0.7em; color:#999;"></i> {{ leave.end_date|date:"M d" }}
+                        </div>
+                    </div>
+                    <div class="meta-item">
+                        <span class="meta-label">Total Days</span>
+                        <div class="meta-value">{{ leave.days_requested }} Day(s)</div>
+                    </div>
+                    <div class="meta-item">
+                        <span class="meta-label">Applied On</span>
+                        <div class="meta-value">Today</div> 
+                    </div>
+                </div>
+
+                <div class="reason-box">
+                    "<span style="color:var(--c-charcoal);">{{ leave.reason }}</span>"
+                </div>
+            </div>
+
+            <div class="action-area">
+                <a href="{% url 'action_leave' leave.id 'approve' %}" class="btn btn-approve">
+                    <i class="fa-solid fa-check"></i> Approve
+                </a>
+                <a href="{% url 'action_leave' leave.id 'reject' %}" class="btn btn-deny">
+                    <i class="fa-solid fa-xmark"></i> Deny
+                </a>
+            </div>
+        </div>
+    {% empty %}
+        <div class="empty-state">
+            <div class="empty-icon">
+                <i class="fa-solid fa-clipboard-check"></i>
+            </div>
+            <h3>All Caught Up!</h3>
+            <p>There are no pending leave requests to review.</p>
+        </div>
+    {% endfor %}
+</div>
+{% endblock %}

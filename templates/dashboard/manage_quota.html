@@ -1,0 +1,126 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<style>
+    /* --- LAYOUT UTILS --- */
+    .allocation-wrapper {
+        max-width: 600px;
+        margin: 0 auto;
+    }
+
+    /* --- PAGE HEADER --- */
+    .header-group {
+        text-align: center;
+        margin-bottom: 30px;
+    }
+    .header-group h2 {
+        font-family: 'Outfit', sans-serif;
+        font-size: 2rem;
+        color: var(--c-charcoal);
+        margin-bottom: 5px;
+    }
+    .header-group .subtitle {
+        color: var(--c-text-muted);
+        font-size: 1rem;
+    }
+    .highlight-name {
+        color: var(--c-orange);
+        font-weight: 600;
+    }
+
+    /* --- FORM STYLING (The "Django Hack") --- */
+    /* We target the specific HTML Django generates with {{ form.as_p }} */
+    
+    .allocation-form p {
+        margin-bottom: 1.5rem; /* Space between fields */
+    }
+
+    .allocation-form label {
+        display: block;
+        font-family: 'Outfit', sans-serif;
+        font-weight: 600;
+        margin-bottom: 8px;
+        color: var(--c-charcoal);
+        font-size: 0.95rem;
+    }
+
+    /* Style ALL inputs inside the form */
+    .allocation-form input[type="text"],
+    .allocation-form input[type="number"],
+    .allocation-form select,
+    .allocation-form textarea {
+        width: 100%;
+        padding: 12px 15px;
+        font-size: 1rem;
+        border: 2px solid var(--c-beige);
+        border-radius: var(--radius-sm);
+        background-color: #FFFEFA;
+        transition: all 0.2s ease;
+        font-family: 'Inter', sans-serif;
+    }
+
+    .allocation-form input:focus {
+        outline: none;
+        border-color: var(--c-orange);
+        box-shadow: 0 0 0 3px rgba(250, 129, 18, 0.1);
+    }
+
+    /* Helper text often rendered by Django */
+    .helptext {
+        display: block;
+        margin-top: 5px;
+        font-size: 0.8rem;
+        color: #888;
+        font-style: italic;
+    }
+
+    /* Error lists rendered by Django */
+    .errorlist {
+        list-style: none;
+        color: #D32F2F;
+        font-size: 0.85rem;
+        margin-bottom: 5px;
+        padding: 0;
+    }
+
+    /* --- ACTIONS --- */
+    .form-actions {
+        margin-top: 30px;
+        display: flex;
+        gap: 15px;
+    }
+    
+    .btn-submit {
+        flex: 1; /* Make it wide */
+        text-align: center;
+        justify-content: center;
+    }
+</style>
+
+<div class="allocation-wrapper">
+    
+    <div class="header-group">
+        <h2>Leave Allocation</h2>
+        <p class="subtitle">Managing quota for <span class="highlight-name">{{ employee.username }}</span></p>
+    </div>
+
+    <div class="card">
+        <form method="post" class="allocation-form">
+            {% csrf_token %}
+            
+            {{ form.as_p }}
+
+            <div class="form-actions">
+                <a href="javascript:history.back()" class="btn" style="background: var(--c-beige); color: var(--c-charcoal);">
+                    Cancel
+                </a>
+                
+                <button type="submit" class="btn btn-primary btn-submit">
+                    <i class="fa-solid fa-check"></i> Update Quota
+                </button>
+            </div>
+        </form>
+    </div>
+
+</div>
+{% endblock %}

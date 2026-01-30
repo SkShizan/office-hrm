@@ -1,0 +1,96 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<style>
+    /* Center the content vertically and horizontally */
+    .pending-container {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        min-height: 60vh; /* Takes up most of the screen height */
+        text-align: center;
+    }
+
+    .state-card {
+        background: white;
+        padding: 40px;
+        max-width: 500px;
+        width: 100%;
+        border-radius: var(--radius-md);
+        box-shadow: var(--shadow-card);
+        border-top: 5px solid var(--c-orange); /* Orange indicates 'Waiting' */
+    }
+
+    .icon-wrapper {
+        font-size: 4rem;
+        color: var(--c-orange);
+        margin-bottom: 20px;
+        opacity: 0.9;
+        animation: pulse 2s infinite;
+    }
+
+    .state-title {
+        font-family: 'Outfit', sans-serif;
+        font-size: 1.8rem;
+        font-weight: 700;
+        color: var(--c-charcoal);
+        margin-bottom: 15px;
+    }
+
+    .state-message {
+        color: var(--c-text-muted);
+        font-size: 1.05rem;
+        margin-bottom: 25px;
+        line-height: 1.6;
+    }
+
+    .company-badge {
+        background: var(--c-beige);
+        color: var(--c-charcoal);
+        padding: 4px 10px;
+        border-radius: 4px;
+        font-weight: 600;
+    }
+
+    .support-note {
+        font-size: 0.9rem;
+        color: #888;
+        border-top: 1px solid #eee;
+        padding-top: 20px;
+        margin-top: 20px;
+    }
+
+    /* Optional: Gentle pulse animation for the icon */
+    @keyframes pulse {
+        0% { transform: scale(1); opacity: 0.9; }
+        50% { transform: scale(1.05); opacity: 1; }
+        100% { transform: scale(1); opacity: 0.9; }
+    }
+</style>
+
+<div class="pending-container">
+    <div class="state-card">
+        <div class="icon-wrapper">
+            <i class="fa-solid fa-user-clock"></i>
+        </div>
+
+        <h2 class="state-title">Approval Pending</h2>
+
+        <p class="state-message">
+            Your account has been successfully created! <br>
+            However, your access is currently awaiting confirmation from the HR Manager at 
+            <span class="company-badge">{{ user.company.name }}</span>.
+        </p>
+
+        <div class="support-note">
+            <i class="fa-solid fa-circle-info"></i> Please check back later or contact your administrator directly to expedite the process.
+        </div>
+        
+        <div style="margin-top: 20px;">
+            <a href="." class="btn btn-primary" style="background-color: var(--c-charcoal);">
+                <i class="fa-solid fa-rotate-right"></i> Check Status
+            </a>
+        </div>
+    </div>
+</div>
+{% endblock %}

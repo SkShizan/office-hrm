@@ -1,0 +1,155 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<style>
+    /* --- CENTERED AUTH LAYOUT --- */
+    .auth-wrapper {
+        min-height: 80vh;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        padding: 40px 20px;
+    }
+
+    .auth-card {
+        background: white;
+        width: 100%;
+        max-width: 420px;
+        padding: 40px;
+        border-radius: var(--radius-md);
+        box-shadow: var(--shadow-card);
+        border-top: 5px solid var(--c-charcoal);
+        position: relative;
+    }
+
+    /* --- HEADER --- */
+    .auth-header {
+        text-align: center;
+        margin-bottom: 30px;
+    }
+    
+    .brand-icon {
+        font-size: 2rem;
+        color: var(--c-orange);
+        margin-bottom: 15px;
+        display: inline-block;
+    }
+
+    .auth-title {
+        font-family: 'Outfit', sans-serif;
+        font-size: 1.8rem;
+        color: var(--c-charcoal);
+        font-weight: 700;
+        margin-bottom: 5px;
+    }
+    .auth-subtitle {
+        color: var(--c-text-muted);
+        font-size: 0.95rem;
+    }
+
+    /* --- FORM STYLING --- */
+    .login-form p {
+        margin-bottom: 1.2rem;
+    }
+
+    .login-form label {
+        display: block;
+        margin-bottom: 6px;
+        font-family: 'Outfit', sans-serif;
+        font-weight: 600;
+        font-size: 0.9rem;
+        color: var(--c-charcoal);
+    }
+
+    .login-form input[type="text"],
+    .login-form input[type="password"] {
+        width: 100%;
+        padding: 12px 15px;
+        border: 2px solid var(--c-beige);
+        border-radius: var(--radius-sm);
+        font-size: 1rem;
+        font-family: 'Inter', sans-serif;
+        background: #FFFEFA;
+        transition: all 0.2s ease;
+    }
+
+    .login-form input:focus {
+        outline: none;
+        border-color: var(--c-orange);
+        background: white;
+        box-shadow: 0 4px 10px rgba(0,0,0,0.05);
+    }
+
+    /* --- BUTTONS --- */
+    .btn-submit {
+        width: 100%;
+        padding: 14px;
+        font-size: 1.1rem;
+        margin-top: 15px;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        gap: 10px;
+    }
+
+    /* --- FOOTER LINKS --- */
+    .auth-footer {
+        text-align: center;
+        margin-top: 30px;
+        font-size: 0.9rem;
+        color: #666;
+        border-top: 1px solid #eee;
+        padding-top: 20px;
+    }
+    
+    .link-group {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+        margin-top: 10px;
+    }
+
+    .auth-footer a {
+        color: var(--c-charcoal);
+        font-weight: 600;
+        text-decoration: none;
+        transition: color 0.2s;
+    }
+    .auth-footer a:hover { 
+        color: var(--c-orange); 
+        text-decoration: underline;
+    }
+
+</style>
+
+<div class="auth-wrapper">
+    <div class="auth-card">
+        
+        <div class="auth-header">
+            <div class="brand-icon">
+                <i class="fa-solid fa-layer-group"></i>
+            </div>
+            <h2 class="auth-title">Welcome Back</h2>
+            <p class="auth-subtitle">Sign in to access your workspace</p>
+        </div>
+
+        <form method="post" class="login-form">
+            {% csrf_token %}
+            
+            {{ form.as_p }}
+            
+            <button type="submit" class="btn btn-primary btn-submit">
+                Sign In <i class="fa-solid fa-arrow-right-to-bracket"></i>
+            </button>
+        </form>
+
+        <div class="auth-footer">
+            <p>New to the platform?</p>
+            <div class="link-group">
+                <a href="{% url 'signup' %}">Create an Account (Employee)</a>
+            </div>
+        </div>
+
+    </div>
+</div>
+{% endblock %}

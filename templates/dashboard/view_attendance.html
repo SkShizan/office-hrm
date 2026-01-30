@@ -1,0 +1,282 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<style>
+    /* --- HEADER & NAVIGATION --- */
+    .page-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 30px;
+    }
+    
+    .month-navigator {
+        background: white;
+        padding: 8px 16px;
+        border-radius: var(--radius-sm);
+        box-shadow: var(--shadow-sm);
+        display: flex;
+        align-items: center;
+        gap: 15px;
+        font-family: 'Outfit', sans-serif;
+        font-weight: 600;
+        font-size: 1.1rem;
+        border: 1px solid var(--c-beige);
+    }
+    .nav-arrow {
+        color: var(--c-orange);
+        padding: 5px 10px;
+        border-radius: 4px;
+        transition: background 0.2s;
+    }
+    .nav-arrow:hover { background: var(--c-beige); }
+
+    /* --- STATS WIDGET --- */
+    .stats-ribbon {
+        background: white;
+        border-radius: var(--radius-md);
+        box-shadow: var(--shadow-card);
+        padding: 20px;
+        margin-bottom: 30px;
+        display: grid;
+        grid-template-columns: repeat(5, 1fr);
+        gap: 20px;
+        border-top: 4px solid var(--c-charcoal);
+    }
+
+    .stat-item {
+        text-align: center;
+        position: relative;
+    }
+    
+    /* Vertical Divider Logic */
+    .stat-item:not(:last-child)::after {
+        content: "";
+        position: absolute;
+        right: -10px;
+        top: 10%;
+        height: 80%;
+        width: 1px;
+        background: var(--c-beige);
+    }
+
+    .stat-label {
+        display: block;
+        font-size: 0.75rem;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        color: var(--c-text-muted);
+        margin-bottom: 5px;
+        font-weight: 600;
+    }
+    .stat-value {
+        font-family: 'Outfit', sans-serif;
+        font-size: 1.8rem;
+        font-weight: 700;
+        color: var(--c-charcoal);
+    }
+
+    /* --- CALENDAR GRID --- */
+    .calendar-wrapper {
+        background: white;
+        border-radius: var(--radius-md);
+        box-shadow: var(--shadow-card);
+        overflow: hidden; /* Ensures corners clip correctly */
+        border: 1px solid rgba(0,0,0,0.05);
+    }
+
+    .calendar-header {
+        display: grid;
+        grid-template-columns: repeat(7, 1fr);
+        background: var(--c-charcoal);
+        color: var(--c-cream);
+        text-align: center;
+        padding: 15px 0;
+        font-family: 'Outfit', sans-serif;
+        font-weight: 600;
+        letter-spacing: 1px;
+        text-transform: uppercase;
+        font-size: 0.85rem;
+    }
+
+    .calendar-body {
+        display: grid;
+        grid-template-columns: repeat(7, 1fr);
+        background: var(--c-beige); /* Creates the lines between cells via Gap */
+        gap: 1px; 
+    }
+
+    .cal-cell {
+        background: white;
+        min-height: 140px;
+        padding: 12px;
+        position: relative;
+        transition: background 0.2s;
+        display: flex;
+        flex-direction: column;
+    }
+
+    .cal-cell.empty { background: #FCFCFC; }
+    .cal-cell:hover { background: #FFFEFA; }
+
+    /* Date Styling */
+    .cell-header {
+        display: flex;
+        justify-content: space-between;
+        margin-bottom: 10px;
+    }
+    .date-num {
+        font-family: 'Outfit', sans-serif;
+        font-weight: 700;
+        font-size: 1.1rem;
+        color: var(--c-charcoal);
+    }
+    .day-name { font-size: 0.75rem; color: #999; }
+
+    /* --- STATUS INDICATORS --- */
+    /* We use distinct colors but soften them to match the theme */
+    .status-Present { border-left: 4px solid #2E7D32; background: linear-gradient(to right, #F1F8E9, white 30%); }
+    .status-Absent  { border-left: 4px solid #D32F2F; background: linear-gradient(to right, #FFEBEE, white 30%); }
+    .status-Leave   { border-left: 4px solid var(--c-orange); background: linear-gradient(to right, #FFF3E0, white 30%); }
+    .status-WFH     { border-left: 4px solid #0288D1; background: linear-gradient(to right, #E1F5FE, white 30%); }
+    .status-Holiday { background: #F3E5F5; opacity: 0.8; }
+    .status-Weekend { background: #FAFAFA; color: #aaa; }
+
+    .status-tag {
+        font-size: 0.75rem;
+        font-weight: 700;
+        text-transform: uppercase;
+        margin-bottom: 5px;
+    }
+    .tag-Present { color: #2E7D32; }
+    .tag-Absent  { color: #D32F2F; }
+    .tag-Leave   { color: var(--c-orange); }
+    .tag-WFH     { color: #0288D1; }
+
+    /* --- FORM CONTROLS INSIDE CALENDAR --- */
+    .calendar-controls select, 
+    .calendar-controls input[type="time"] {
+        width: 100%;
+        margin-top: 4px;
+        font-size: 0.8rem;
+        padding: 4px 6px;
+        border: 1px solid #eee;
+        border-radius: 4px;
+        background: #f9f9f9;
+        color: #555;
+    }
+    .calendar-controls select:focus,
+    .calendar-controls input:focus {
+        border-color: var(--c-orange);
+        background: white;
+    }
+    
+    .time-stamp {
+        font-size: 0.8rem;
+        color: var(--c-text-muted);
+        background: #eee;
+        padding: 2px 6px;
+        border-radius: 4px;
+        align-self: flex-start;
+        margin-top: auto; /* Pushes to bottom */
+    }
+
+</style>
+
+<div class="page-header">
+    <div class="header-title">
+        <h2 style="font-family: 'Outfit'; margin-bottom: 5px;">Attendance Record</h2>
+        <span style="color: var(--c-text-muted);">{{ target_user.username }}</span>
+    </div>
+
+    <div class="month-navigator">
+        <a href="?month={{ month|add:'-1' }}&year={{ year }}" class="nav-arrow">
+            <i class="fa-solid fa-chevron-left"></i>
+        </a>
+        <span>{{ month_name }} {{ year }}</span>
+        <a href="?month={{ month|add:'1' }}&year={{ year }}" class="nav-arrow">
+            <i class="fa-solid fa-chevron-right"></i>
+        </a>
+    </div>
+</div>
+
+<div class="stats-ribbon">
+    <div class="stat-item">
+        <span class="stat-label">Total Days</span>
+        <div class="stat-value">{{ stats.total_days }}</div>
+    </div>
+    <div class="stat-item">
+        <span class="stat-label" style="color: #2E7D32;">Present</span>
+        <div class="stat-value" style="color: #2E7D32;">{{ stats.present }}</div>
+    </div>
+    <div class="stat-item">
+        <span class="stat-label" style="color: #0288D1;">Work From Home</span>
+        <div class="stat-value" style="color: #0288D1;">{{ stats.wfh }}</div>
+    </div>
+    <div class="stat-item">
+        <span class="stat-label" style="color: var(--c-orange);">Leaves Taken</span>
+        <div class="stat-value" style="color: var(--c-orange);">{{ stats.leave }}</div>
+    </div>
+    <div class="stat-item">
+        <span class="stat-label" style="color: #D32F2F;">Absent</span>
+        <div class="stat-value" style="color: #D32F2F;">{{ stats.absent }}</div>
+    </div>
+</div>
+
+<div class="calendar-wrapper">
+    <div class="calendar-header">
+        <div>Sun</div>
+        <div>Mon</div>
+        <div>Tue</div>
+        <div>Wed</div>
+        <div>Thu</div>
+        <div>Fri</div>
+        <div>Sat</div>
+    </div>
+
+    <div class="calendar-body">
+        {% for day in month_days %}
+            {% if day is None %}
+                <div class="cal-cell empty"></div> 
+            {% else %}
+                <div class="cal-cell status-{{ day.status }}">
+                    <div class="cell-header">
+                        <span class="date-num">{{ day.day }}</span>
+                        <span class="day-name">{{ day.day_name|slice:":3" }}</span>
+                    </div>
+
+                    {% if is_manager %}
+                        <form method="POST" class="calendar-controls">
+                            {% csrf_token %}
+                            <input type="hidden" name="date" value="{{ day.date|date:'Y-m-d' }}">
+                            
+                            <select name="status" onchange="this.form.submit()">
+                                <option value="Present" {% if day.status == 'Present' %}selected{% endif %}>Present</option>
+                                <option value="Absent" {% if day.status == 'Absent' %}selected{% endif %}>Absent</option>
+                                <option value="WFH" {% if day.status == 'WFH' %}selected{% endif %}>WFH</option>
+                                <option value="Leave" {% if day.status == 'Leave' %}selected{% endif %}>Leave</option>
+                                <option value="Holiday" {% if day.status == 'Holiday' %}selected{% endif %}>Holiday</option>
+                            </select>
+
+                            <input type="time" name="login_time" 
+                                   value="{{ day.login_time|time:'H:i' }}" 
+                                   onblur="this.form.submit()">
+                        </form>
+                    {% else %}
+                        {% if day.status != 'None' %}
+                            <div class="status-tag tag-{{ day.status }}">{{ day.status }}</div>
+                        {% endif %}
+
+                        {% if day.login_time %}
+                            <div class="time-stamp">
+                                <i class="fa-regular fa-clock"></i> {{ day.login_time|time:"H:i" }}
+                            </div>
+                        {% endif %}
+                    {% endif %}
+                </div>
+            {% endif %}
+        {% endfor %}
+    </div>
+</div>
+
+{% endblock %}

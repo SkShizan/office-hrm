@@ -1,0 +1,164 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<style>
+    /* --- CENTERED AUTH LAYOUT --- */
+    .auth-wrapper {
+        min-height: 80vh;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        padding: 40px 20px;
+    }
+
+    .auth-card {
+        background: white;
+        width: 100%;
+        max-width: 480px;
+        padding: 40px;
+        border-radius: var(--radius-md);
+        box-shadow: var(--shadow-card);
+        border-top: 5px solid var(--c-orange);
+    }
+
+    /* --- HEADER --- */
+    .auth-header {
+        text-align: center;
+        margin-bottom: 25px;
+    }
+    .auth-title {
+        font-family: 'Outfit', sans-serif;
+        font-size: 1.8rem;
+        color: var(--c-charcoal);
+        margin-bottom: 10px;
+    }
+
+    /* --- GUIDANCE NOTE --- */
+    .guidance-box {
+        background: #F0F4FF; /* Very light blue */
+        border: 1px solid #D9E2FF;
+        padding: 15px;
+        border-radius: var(--radius-sm);
+        color: #004085;
+        font-size: 0.9rem;
+        display: flex;
+        gap: 12px;
+        align-items: flex-start;
+        margin-bottom: 25px;
+        line-height: 1.5;
+    }
+    .guidance-icon {
+        font-size: 1.1rem;
+        margin-top: 2px;
+    }
+
+    /* --- FORM STYLING --- */
+    /* Target Django's auto-generated HTML */
+    .signup-form p {
+        margin-bottom: 1.2rem;
+    }
+
+    .signup-form label {
+        display: block;
+        margin-bottom: 6px;
+        font-family: 'Outfit', sans-serif;
+        font-weight: 600;
+        font-size: 0.9rem;
+        color: var(--c-charcoal);
+    }
+
+    .signup-form input[type="text"],
+    .signup-form input[type="email"],
+    .signup-form input[type="password"], 
+    .signup-form select {
+        width: 100%;
+        padding: 12px 15px;
+        border: 2px solid var(--c-beige);
+        border-radius: var(--radius-sm);
+        font-size: 1rem;
+        font-family: 'Inter', sans-serif;
+        background: #FFFEFA;
+        transition: all 0.2s ease;
+    }
+
+    .signup-form input:focus {
+        outline: none;
+        border-color: var(--c-orange);
+        background: white;
+        box-shadow: 0 4px 10px rgba(0,0,0,0.05);
+    }
+    
+    .helptext {
+        font-size: 0.8rem;
+        color: #888;
+        margin-top: 4px;
+        display: block;
+    }
+    
+    .errorlist {
+        color: #dc3545;
+        list-style: none;
+        font-size: 0.85rem;
+        margin-bottom: 5px;
+        padding: 0;
+    }
+
+    /* --- BUTTONS --- */
+    .btn-submit {
+        width: 100%;
+        padding: 14px;
+        font-size: 1.1rem;
+        margin-top: 10px;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        gap: 10px;
+    }
+
+    .auth-footer {
+        text-align: center;
+        margin-top: 25px;
+        font-size: 0.9rem;
+        color: #666;
+        border-top: 1px solid #eee;
+        padding-top: 20px;
+    }
+    .auth-footer a {
+        color: var(--c-orange);
+        font-weight: 600;
+    }
+    .auth-footer a:hover { text-decoration: underline; }
+
+</style>
+
+<div class="auth-wrapper">
+    <div class="auth-card">
+        
+        <div class="auth-header">
+            <h2 class="auth-title">Join Your Team</h2>
+        </div>
+
+        <div class="guidance-box">
+            <i class="fa-solid fa-circle-info guidance-icon"></i>
+            <div>
+                <strong>Important:</strong> You must enter your company's 
+                registered <strong>HR Email Address</strong> so we can link you to the correct organization.
+            </div>
+        </div>
+
+        <form method="post" class="signup-form">
+            {% csrf_token %}
+            {{ form.as_p }}
+            
+            <button type="submit" class="btn btn-primary btn-submit">
+                <i class="fa-solid fa-user-plus"></i> Request Access
+            </button>
+        </form>
+
+        <div class="auth-footer">
+            Already have an account? <a href="{% url 'login' %}">Login here</a>
+        </div>
+
+    </div>
+</div>
+{% endblock %}

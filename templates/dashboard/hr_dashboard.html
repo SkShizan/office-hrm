@@ -1,0 +1,409 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<style>
+    /* --- DASHBOARD HEADER & ACTIONS --- */
+    .dash-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-end;
+        margin-bottom: 40px;
+        border-bottom: 1px solid var(--c-beige);
+        padding-bottom: 20px;
+    }
+
+    .company-title {
+        font-family: 'Outfit', sans-serif;
+        font-size: 2rem;
+        color: var(--c-charcoal);
+        margin-bottom: 5px;
+    }
+    .company-badge {
+        font-size: 0.9rem;
+        background: var(--c-beige);
+        padding: 2px 8px;
+        border-radius: 4px;
+        color: var(--c-charcoal);
+        font-weight: 600;
+        vertical-align: middle;
+    }
+
+    .action-toolbar {
+        display: flex;
+        gap: 10px;
+    }
+    
+    /* Toolbar Button Variants */
+    .btn-tool {
+        padding: 10px 18px;
+        border-radius: var(--radius-sm);
+        font-size: 0.9rem;
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        transition: transform 0.2s;
+        text-decoration: none !important;
+        font-weight: 600;
+        border: none;
+        cursor: pointer;
+    }
+    .btn-tool:hover { transform: translateY(-2px); }
+
+    .btn-grey { background: #e0e0e0; color: var(--c-charcoal); }
+    .btn-blue { background: #007bff; color: white; }
+    .btn-teal { background: #17a2b8; color: white; }
+    .btn-purple { background: #6f42c1; color: white; }
+    
+    /* --- SECTION TITLES --- */
+    .section-title {
+        font-family: 'Outfit', sans-serif;
+        font-size: 1.2rem;
+        margin-bottom: 20px;
+        color: var(--c-text-muted);
+        text-transform: uppercase;
+        letter-spacing: 1px;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+    }
+    .section-title::after {
+        content: "";
+        flex: 1;
+        height: 1px;
+        background: #eee;
+    }
+
+    /* --- ONBOARDING CARD --- */
+    .onboarding-card {
+        background: white;
+        border-radius: var(--radius-md);
+        box-shadow: var(--shadow-card);
+        padding: 25px;
+        border-left: 5px solid var(--c-orange);
+        margin-bottom: 25px;
+    }
+
+    .applicant-info {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        border-bottom: 1px dashed #eee;
+        padding-bottom: 15px;
+        margin-bottom: 15px;
+    }
+    .applicant-name { font-family: 'Outfit'; font-size: 1.2rem; font-weight: 700; }
+    .applicant-email { color: var(--c-text-muted); font-size: 0.9rem; }
+
+    .onboard-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 15px;
+        align-items: end;
+    }
+
+    /* --- TEAM CARD DESIGN (New) --- */
+    .team-block {
+        background: white;
+        border-radius: var(--radius-md);
+        box-shadow: var(--shadow-card);
+        overflow: hidden;
+        margin-bottom: 30px; /* Space between team cards */
+        border: 1px solid rgba(0,0,0,0.05);
+    }
+
+    .team-header {
+        background: #fafafa;
+        padding: 15px 25px;
+        border-bottom: 1px solid #eee;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+    
+    .team-name {
+        font-family: 'Outfit', sans-serif;
+        font-size: 1.1rem;
+        font-weight: 700;
+        color: var(--c-charcoal);
+    }
+    
+    .team-count {
+        background: var(--c-beige);
+        color: #666;
+        font-size: 0.8rem;
+        padding: 2px 8px;
+        border-radius: 10px;
+        font-weight: 600;
+    }
+
+    /* --- TABLE INSIDE TEAM CARD --- */
+    table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 0.95rem;
+    }
+
+    thead th {
+        background-color: white; /* Clean header inside card */
+        color: #888;
+        text-transform: uppercase;
+        font-size: 0.75rem;
+        letter-spacing: 0.5px;
+        text-align: left;
+        padding: 15px 25px;
+        border-bottom: 2px solid #f0f0f0;
+    }
+
+    td {
+        padding: 15px 25px;
+        border-bottom: 1px solid #f9f9f9;
+        color: #444;
+        vertical-align: middle;
+    }
+    
+    /* Remove bottom border of last row */
+    tbody tr:last-child td {
+        border-bottom: none;
+    }
+
+    tbody tr:hover {
+        background-color: #FFFEFA;
+    }
+
+    /* --- PILLS & ACTIONS --- */
+    .tag-pill {
+        display: inline-block;
+        padding: 4px 10px;
+        border-radius: 12px;
+        font-size: 0.75rem;
+        font-weight: 700;
+        letter-spacing: 0.3px;
+    }
+    .tag-front { background: #e6f7ff; color: #0050b3; }
+    .tag-back { background: #f6ffed; color: #389e0d; }
+    .tag-mgmt { background: #fff0f6; color: #c41d7f; }
+
+    .role-badge {
+        font-size: 0.85rem;
+        font-weight: 500;
+        padding: 2px 8px;
+        border-radius: 4px;
+        background: #f1f3f5;
+        color: #495057;
+    }
+    /* Highlight Leaders */
+    .role-manager { background: #fff3cd; color: #856404; border: 1px solid #ffeeba; }
+    .role-tl { background: #d1ecf1; color: #0c5460; border: 1px solid #bee5eb; }
+
+    .table-actions {
+        display: flex;
+        gap: 6px;
+        align-items: center;
+    }
+
+    .btn-icon {
+        width: 32px;
+        height: 32px;
+        display: inline-flex;
+        justify-content: center;
+        align-items: center;
+        border-radius: 4px;
+        font-size: 0.85rem;
+        transition: all 0.2s;
+        border: 1px solid transparent;
+        background: transparent;
+        cursor: pointer;
+    }
+    
+    .btn-edit { color: #d48806; border-color: #ffe58f; background: #fffbe6; }
+    .btn-edit:hover { background: #d48806; color: white; border-color: #d48806; }
+
+    .btn-quota { color: #531dab; border-color: #d3adf7; background: #f9f0ff; }
+    .btn-quota:hover { background: #531dab; color: white; border-color: #531dab; }
+
+    .btn-cal { color: #135200; border-color: #b7eb8f; background: #f6ffed; }
+    .btn-cal:hover { background: #28a745; color: white; border-color: #28a745; }
+
+    .btn-del { color: #cf1322; border-color: #ffa39e; background: #fff1f0; }
+    .btn-del:hover { background: #cf1322; color: white; border-color: #cf1322; }
+
+    .you-badge {
+        background: var(--c-charcoal);
+        color: white;
+        font-size: 0.65rem;
+        padding: 2px 5px;
+        border-radius: 4px;
+        margin-left: 5px;
+        vertical-align: text-top;
+    }
+</style>
+
+<div class="dash-header">
+    <div>
+        <h2 class="company-title">Dashboard</h2>
+        <span class="company-badge"><i class="fa-solid fa-building"></i> {{ user.company.name }}</span>
+    </div>
+    
+    <div class="action-toolbar">
+        <a href="{% url 'manage_teams' %}" class="btn-tool btn-purple">
+            <i class="fa-solid fa-sitemap"></i> Manage Teams
+        </a>
+        <a href="{% url 'edit_employee' user.id %}" class="btn-tool btn-grey">
+            <i class="fa-solid fa-user-pen"></i> Profile
+        </a>
+        <a href="{% url 'apply_leave' %}" class="btn-tool btn-blue">
+            <i class="fa-solid fa-paper-plane"></i> Leave
+        </a>
+        <a href="{% url 'leave_requests_list' %}" class="btn-tool btn-teal">
+            <i class="fa-solid fa-list-check"></i> Inbox
+        </a>
+    </div>
+</div>
+
+{% if pending_users %}
+    <h3 class="section-title"><i class="fa-solid fa-user-plus"></i> Pending Onboarding</h3>
+    {% for employee in pending_users %}
+        <div class="onboarding-card">
+            <form method="POST" action="{% url 'approve_employee' employee.id %}">
+                {% csrf_token %}
+                
+                <div class="applicant-info">
+                    <div>
+                        <div class="applicant-name">{{ employee.username }}</div>
+                        <div class="applicant-email"><i class="fa-regular fa-envelope"></i> {{ employee.email }}</div>
+                    </div>
+                    <button type="submit" class="btn btn-primary">
+                        <i class="fa-solid fa-check"></i> Approve & Onboard
+                    </button>
+                </div>
+                
+                <div class="onboard-grid">
+                    <div>
+                        <label>Section</label>
+                        <select name="section" required>
+                            <option value="Frontside">Frontside</option>
+                            <option value="Backside">Backside</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label>Assign Team</label>
+                        <select name="team_id" required>
+                            <option value="">Select Team...</option>
+                            {% for team in teams %}
+                                <option value="{{ team.id }}">{{ team.name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div>
+                        <label>Role</label>
+                        <select name="role" required>
+                            <option value="Employee">Employee</option>
+                            <option value="TL">Team Leader</option>
+                            <option value="Manager">Manager</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label>Designation</label>
+                        <input type="text" name="designation" placeholder="e.g. React Dev" required>
+                    </div>
+                    <div>
+                        <label>Reports To</label>
+                        <select name="reports_to">
+                            <option value="">-- Top Level --</option>
+                            {% for active in active_users %}
+                                {% if active.role in 'Manager,TL,Director' %}
+                                    <option value="{{ active.id }}">{{ active.username }} ({{ active.role }})</option>
+                                {% endif %}
+                            {% endfor %}
+                        </select>
+                    </div>
+                </div>
+            </form>
+        </div>
+    {% endfor %}
+{% endif %}
+
+<h3 class="section-title" style="margin-top: 40px;"><i class="fa-solid fa-users-viewfinder"></i> Organization Structure</h3>
+
+{% regroup active_users by team as team_list %}
+
+{% for team_group in team_list %}
+    <div class="team-block">
+        <div class="team-header">
+            <div class="team-name">
+                <i class="fa-solid fa-layer-group" style="color: var(--c-orange); margin-right: 8px;"></i>
+                {{ team_group.grouper.name|default:"Unassigned / Management" }}
+            </div>
+            <div class="team-count">{{ team_group.list|length }} Members</div>
+        </div>
+
+        <table>
+            <thead>
+                <tr>
+                    <th style="width: 25%;">Name & Designation</th>
+                    <th style="width: 15%;">Section</th>
+                    <th style="width: 15%;">Role</th>
+                    <th style="width: 20%;">Reports To</th>
+                    <th style="width: 25%; text-align: right;">Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for employee in team_group.list %}
+                    <tr>
+                        <td>
+                            <div style="font-weight: 700; color: #222;">
+                                {{ employee.username }}
+                                {% if employee.id == user.id %}<span class="you-badge">YOU</span>{% endif %}
+                            </div>
+                            <div style="font-size: 0.85rem; color: #777;">{{ employee.designation }}</div>
+                        </td>
+                        <td>
+                            {% if employee.section == 'Frontside' %}<span class="tag-pill tag-front">Frontside</span>{% endif %}
+                            {% if employee.section == 'Backside' %}<span class="tag-pill tag-back">Backside</span>{% endif %}
+                            {% if employee.section == 'Management' %}<span class="tag-pill tag-mgmt">Mgmt</span>{% endif %}
+                        </td>
+                        <td>
+                            <span class="role-badge {% if employee.role == 'Manager' %}role-manager{% elif employee.role == 'TL' %}role-tl{% endif %}">
+                                {{ employee.role }}
+                            </span>
+                        </td>
+                        <td style="color: #666; font-style: italic;">
+                            {{ employee.reports_to.username|default:"—" }}
+                        </td>
+                        <td>
+                            <div class="table-actions" style="justify-content: flex-end;">
+                                <a href="{% url 'edit_employee' employee.id %}" class="btn-icon btn-edit" title="Edit Profile">
+                                    <i class="fa-solid fa-pencil"></i>
+                                </a>
+                                
+                                <a href="{% url 'manage_quota' employee.id %}" class="btn-icon btn-quota" title="Manage Quota">
+                                    <i class="fa-solid fa-sliders"></i>
+                                </a>
+
+                                <a href="{% url 'view_attendance' employee.id %}" class="btn-icon btn-cal" title="View Calendar">
+                                    <i class="fa-solid fa-calendar-days"></i>
+                                </a>
+
+                                {% if employee.id != user.id %}
+                                    <form action="{% url 'delete_employee' employee.id %}" method="POST" style="display:inline-flex;" onsubmit="return confirm('WARNING: Delete {{ employee.username }}?');">
+                                        {% csrf_token %}
+                                        <button type="submit" class="btn-icon btn-del" title="Delete User">
+                                            <i class="fa-solid fa-trash-can"></i>
+                                        </button>
+                                    </form>
+                                {% endif %}
+                            </div>
+                        </td>
+                    </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+{% empty %}
+    <div style="text-align: center; padding: 40px; background: #fff; border-radius: 8px; color: #888;">
+        <i class="fa-solid fa-user-slash" style="font-size: 2rem; margin-bottom: 10px; display:block;"></i>
+        No active employees found.
+    </div>
+{% endfor %}
+
+{% endblock %}

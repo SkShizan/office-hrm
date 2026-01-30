@@ -1,0 +1,267 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>HRMS Professional</title>
+    
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;600;700&family=Inter:wght@400;500&display=swap" rel="stylesheet">
+    
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+    <style>
+        :root {
+            /* --- YOUR PALETTE --- */
+            --c-cream:    #FAF3E1;
+            --c-beige:    #F5E7C6;
+            --c-orange:   #FA8112;
+            --c-charcoal: #222222;
+            
+            /* --- DERIVED SHADES --- */
+            --c-orange-hover: #d66a0a;
+            --c-text-light:   #ffffff;
+            --c-text-muted:   #666666;
+            
+            /* --- SPACING & SHAPE --- */
+            --radius-md: 12px;
+            --radius-sm: 6px;
+            --shadow-card: 0 10px 30px -10px rgba(0,0,0,0.08);
+            --nav-height: 70px;
+        }
+
+        /* --- GLOBAL RESET --- */
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: var(--c-cream);
+            color: var(--c-charcoal);
+            line-height: 1.6;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        a { text-decoration: none; transition: 0.2s ease; }
+        ul { list-style: none; }
+
+        /* --- NAVIGATION BAR --- */
+        .navbar {
+            background-color: var(--c-charcoal);
+            height: var(--nav-height);
+            display: flex;
+            align-items: center;
+            padding: 0 2rem;
+            position: sticky;
+            top: 0;
+            z-index: 1000;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.15);
+        }
+
+        .nav-container {
+            width: 100%;
+            max-width: 1200px;
+            margin: 0 auto;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .nav-brand {
+            font-family: 'Outfit', sans-serif;
+            font-weight: 700;
+            font-size: 1.5rem;
+            color: var(--c-cream);
+            letter-spacing: -0.5px;
+        }
+        .nav-brand span { color: var(--c-orange); }
+
+        .nav-links { display: flex; align-items: center; gap: 20px; }
+        
+        .nav-link {
+            color: rgba(255,255,255,0.7);
+            font-weight: 500;
+            font-size: 0.95rem;
+        }
+        .nav-link:hover { color: var(--c-orange); }
+        .nav-link.active { color: var(--c-text-light); }
+
+        /* --- USER ACTIONS --- */
+        .user-menu {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            padding-left: 20px;
+            border-left: 1px solid rgba(255,255,255,0.1);
+        }
+        
+        .user-name {
+            color: var(--c-beige);
+            font-size: 0.9rem;
+            font-weight: 600;
+        }
+
+        /* --- BUTTONS --- */
+        .btn {
+            display: inline-block;
+            padding: 10px 20px;
+            border-radius: var(--radius-sm);
+            font-weight: 600;
+            font-family: 'Outfit', sans-serif;
+            cursor: pointer;
+            border: none;
+            transition: all 0.2s ease;
+            font-size: 0.9rem;
+        }
+
+        .btn-primary {
+            background-color: var(--c-orange);
+            color: white;
+            box-shadow: 0 4px 15px rgba(250, 129, 18, 0.3);
+        }
+        .btn-primary:hover {
+            background-color: var(--c-orange-hover);
+            transform: translateY(-1px);
+        }
+
+        .btn-nav-logout {
+            background: rgba(255,255,255,0.1);
+            color: white;
+            padding: 8px 16px;
+            font-size: 0.85rem;
+        }
+        .btn-nav-logout:hover { background: rgba(255,255,255,0.2); }
+
+        /* --- LAYOUT CONTAINER --- */
+        .main-container {
+            width: 100%;
+            max-width: 1000px; /* Wider for modern dashboards */
+            margin: 40px auto;
+            padding: 0 20px;
+            flex: 1; /* Pushes footer down */
+        }
+
+        /* --- CARDS (Global Utility) --- */
+        .card {
+            background: white;
+            border-radius: var(--radius-md);
+            box-shadow: var(--shadow-card);
+            padding: 2.5rem;
+            border: 1px solid rgba(0,0,0,0.03);
+            margin-bottom: 20px;
+        }
+        .card-header {
+            margin-bottom: 1.5rem;
+            padding-bottom: 1rem;
+            border-bottom: 2px solid var(--c-cream);
+        }
+        .card-title {
+            font-family: 'Outfit', sans-serif;
+            color: var(--c-charcoal);
+            font-size: 1.5rem;
+            font-weight: 700;
+        }
+
+        /* --- FORMS (Global Utility) --- */
+        .form-group { margin-bottom: 1.2rem; }
+        
+        label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+            font-size: 0.9rem;
+            color: var(--c-charcoal);
+        }
+
+        input[type="text"],
+        input[type="email"],
+        input[type="password"],
+        select {
+            width: 100%;
+            padding: 12px 15px;
+            border: 2px solid var(--c-beige);
+            border-radius: var(--radius-sm);
+            font-size: 1rem;
+            background: #FFFEFA; /* Very subtle warm white */
+            transition: border-color 0.2s;
+            font-family: 'Inter', sans-serif;
+        }
+
+        input:focus, select:focus {
+            outline: none;
+            border-color: var(--c-orange);
+            background: white;
+        }
+
+        /* --- ALERTS --- */
+        .alert {
+            padding: 15px;
+            border-radius: var(--radius-sm);
+            margin-bottom: 20px;
+            font-weight: 500;
+            border-left: 4px solid;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .alert-error, .alert-danger {
+            background-color: #FFF0F0;
+            color: #D32F2F;
+            border-color: #D32F2F;
+        }
+        .alert-success {
+            background-color: #F0FFF4;
+            color: #2E7D32;
+            border-color: #2E7D32;
+        }
+
+    </style>
+</head>
+<body>
+
+    <nav class="navbar">
+        <div class="nav-container">
+            <a href="{% url 'dashboard' %}" class="nav-brand">
+                <i class="fa-solid fa-layer-group"></i> SBD<span> Leave Management System</span>
+            </a>
+
+            <div class="nav-links">
+                {% if user.is_authenticated %}
+                    <a href="{% url 'dashboard' %}" class="nav-link">Dashboard</a>
+                    
+                    <div class="user-menu">
+                        <span class="user-name">
+                            <i class="fa-regular fa-circle-user"></i> {{ user.username }}
+                        </span>
+                        
+                        <form action="{% url 'logout' %}" method="post" style="display:inline;">
+                            {% csrf_token %}
+                            <button type="submit" class="btn btn-nav-logout">
+                                <i class="fa-solid fa-arrow-right-from-bracket"></i> Logout
+                            </button>
+                        </form>
+                    </div>
+                {% else %}
+                    <a href="{% url 'login' %}" class="nav-link">Login</a>
+                    <a href="{% url 'signup' %}" class="nav-link">Employee Signup</a>
+                {% endif %}
+            </div>
+        </div>
+    </nav>
+
+    <main class="main-container">
+        {% if messages %}
+            {% for message in messages %}
+                <div class="alert alert-{{ message.tags }}">
+                    <i class="fa-solid fa-circle-info"></i> {{ message }}
+                </div>
+            {% endfor %}
+        {% endif %}
+
+        {% block content %}{% endblock %}
+    </main>
+
+</body>
+</html>

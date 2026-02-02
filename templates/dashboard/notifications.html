@@ -1,0 +1,42 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<style>
+    .notif-card {
+        background: white;
+        padding: 20px;
+        border-radius: 8px;
+        box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+        margin-bottom: 15px;
+        border-left: 5px solid var(--c-orange);
+    }
+    .notif-header { display: flex; justify-content: space-between; margin-bottom: 8px; }
+    .notif-title { font-weight: 700; color: #333; }
+    .notif-date { font-size: 0.8rem; color: #999; }
+    .notif-msg { color: #555; white-space: pre-line; }
+</style>
+
+<div style="max-width: 800px; margin: 0 auto;">
+    <h2 style="margin-bottom: 25px; font-family: 'Outfit';">Notifications</h2>
+
+    {% for notif in notifications %}
+        <div class="notif-card">
+            <div class="notif-header">
+                <span class="notif-title"><i class="fa-solid fa-bell"></i> {{ notif.title }}</span>
+                <span class="notif-date">{{ notif.created_at|date:"M d, Y H:i" }}</span>
+            </div>
+            <div class="notif-msg">
+                {{ notif.message }}
+            </div>
+            <div style="margin-top: 10px; font-size: 0.85rem; color: #888;">
+                From: <strong>{{ notif.sender.username }}</strong>
+            </div>
+        </div>
+    {% empty %}
+        <div style="text-align: center; padding: 50px; color: #999;">
+            <i class="fa-regular fa-bell-slash" style="font-size: 2rem; margin-bottom: 10px;"></i>
+            <p>No notifications yet.</p>
+        </div>
+    {% endfor %}
+</div>
+{% endblock %}

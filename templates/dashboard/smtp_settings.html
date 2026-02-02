@@ -1,0 +1,45 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div style="max-width: 600px; margin: 0 auto; background: white; padding: 40px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.05);">
+    <h2 style="margin-bottom: 20px; color: #333; font-family: 'Outfit';"><i class="fa-solid fa-envelope-open-text"></i> SMTP Configuration</h2>
+    <p style="color: #777; margin-bottom: 30px; font-size: 0.9rem;">
+        Configure the email settings used to send notifications to employees and managers. 
+        Using <strong>Gmail</strong>? Make sure to use an <u>App Password</u>, not your login password.
+    </p>
+
+    <form method="POST">
+        {% csrf_token %}
+        
+        <div style="margin-bottom: 20px;">
+            <label style="display: block; font-weight: 600; margin-bottom: 5px;">Sender Email (Gmail)</label>
+            <input type="email" name="smtp_email" value="{{ form.instance.smtp_email|default:'' }}" 
+                   style="width: 100%; padding: 12px; border: 1px solid #ccc; border-radius: 6px;" placeholder="hr@company.com">
+        </div>
+
+        <div style="margin-bottom: 20px;">
+            <label style="display: block; font-weight: 600; margin-bottom: 5px;">App Password</label>
+            <input type="password" name="smtp_password" value="{{ form.instance.smtp_password|default:'' }}" 
+                   style="width: 100%; padding: 12px; border: 1px solid #ccc; border-radius: 6px;" placeholder="xxxx xxxx xxxx xxxx">
+        </div>
+
+        <div style="display: grid; grid-template-columns: 2fr 1fr; gap: 20px;">
+            <div style="margin-bottom: 20px;">
+                <label style="display: block; font-weight: 600; margin-bottom: 5px;">SMTP Server</label>
+                <input type="text" name="smtp_server" value="{{ form.instance.smtp_server }}" 
+                       style="width: 100%; padding: 12px; border: 1px solid #ccc; border-radius: 6px;">
+            </div>
+            <div style="margin-bottom: 20px;">
+                <label style="display: block; font-weight: 600; margin-bottom: 5px;">Port</label>
+                <input type="number" name="smtp_port" value="{{ form.instance.smtp_port }}" 
+                       style="width: 100%; padding: 12px; border: 1px solid #ccc; border-radius: 6px;">
+            </div>
+        </div>
+
+        <button type="submit" style="width: 100%; background: var(--c-charcoal); color: white; padding: 12px; border: none; border-radius: 6px; font-weight: bold; cursor: pointer;">
+            Save Settings
+        </button>
+        <a href="{% url 'hr_dashboard' %}" style="display: block; text-align: center; margin-top: 15px; color: #666; text-decoration: none;">Cancel</a>
+    </form>
+</div>
+{% endblock %}

@@ -1,17 +1,16 @@
 import calendar
 from datetime import date, datetime, timedelta
+from decimal import Decimal 
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.decorators import login_required
 from django.db import transaction 
 from django.contrib import messages
-from django.core.mail import send_mail
+from django.core.mail import send_mail, get_connection
 from django.conf import settings
-from accounts.models import User
-from .models import LeaveRequest, LeaveBalance, AttendanceRecord, PublicHoliday
-from .forms import LeaveApplicationForm, LeaveAllocationForm
-from accounts.models import Team # Import Team
 from django.db.models import Q
-from decimal import Decimal # <--- Import Decimal for precise math
+from accounts.models import User, Team
+from .models import LeaveRequest, LeaveBalance, AttendanceRecord, PublicHoliday, Notification
+from .forms import LeaveApplicationForm, LeaveAllocationForm, SMTPSettingsForm
 
 # ==========================================
 # 1. CORE DASHBOARD ROUTING
@@ -19,26 +18,17 @@ from decimal import Decimal # <--- Import Decimal for precise math
 
 @login_required
 def dashboard(request):
-    """
-    Traffic controller: Sends user to the correct dashboard based on role/status.
-    """
     user = request.user
     
-    # 1. If not approved, show pending page
     if not user.is_approved:
         return render(request, 'dashboard/pending.html')
     
-    # 2. If HR, go to HR Dashboard
     if user.role == 'HR':
         return redirect('hr_dashboard')
     
-    # 3. If Employee (Manager, TL, or Standard), go to Employee Dashboard
     else:
-        # LOGIC: Fetch 'My Team' if I am a Manager or TL
         my_team_members = User.objects.none()
-        
         if user.role in ['Manager', 'TL']:
-            # Fetch users who Report to me OR are in my Team (excluding myself)
             my_team_members = User.objects.filter(
                 Q(reports_to=user) | Q(team=user.team)
             ).filter(is_approved=True).exclude(id=user.id).distinct()
@@ -46,6 +36,7 @@ def dashboard(request):
         return render(request, 'dashboard/employee_dashboard.html', {
             'my_team_members': my_team_members
         })
+
 # ==========================================
 # 2. HR MANAGEMENT VIEWS
 # ==========================================
@@ -57,12 +48,12 @@ def hr_dashboard(request):
     
     pending_users = User.objects.filter(company=request.user.company, is_approved=False)
     active_users = User.objects.filter(company=request.user.company, is_approved=True)
-    teams = Team.objects.filter(company=request.user.company) # <--- Add this
+    teams = Team.objects.filter(company=request.user.company)
 
     return render(request, 'dashboard/hr_dashboard.html', {
         'pending_users': pending_users,
         'active_users': active_users,
-        'teams': teams, # <--- Pass it here
+        'teams': teams,
     })
 
 @login_required
@@ -73,17 +64,14 @@ def approve_employee(request, user_id):
     employee = get_object_or_404(User, id=user_id)
     
     if request.method == 'POST':
-        # 1. Basic Details
         employee.designation = request.POST.get('designation')
-        employee.section = request.POST.get('section') # Frontside/Backside
-        employee.role = request.POST.get('role')       # Manager/TL/Employee
+        employee.section = request.POST.get('section')
+        employee.role = request.POST.get('role')
         
-        # 2. Team Assignment
         team_id = request.POST.get('team_id')
         if team_id:
             employee.team = Team.objects.get(id=team_id)
             
-        # 3. Reporting Manager Assignment
         reports_to_id = request.POST.get('reports_to')
         if reports_to_id:
             employee.reports_to = User.objects.get(id=reports_to_id)
@@ -93,10 +81,9 @@ def approve_employee(request, user_id):
         employee.is_approved = True
         employee.save()
         
-        # Auto-create leave balance
         LeaveBalance.objects.get_or_create(user=employee)
         
-        messages.success(request, f"{employee.username} onboarded to {employee.section} - {employee.team.name}.")
+        messages.success(request, f"{employee.username} onboarded successfully.")
         return redirect('hr_dashboard')
         
     return redirect('hr_dashboard')
@@ -107,12 +94,8 @@ def edit_employee(request, user_id):
         return redirect('dashboard')
     
     employee = get_object_or_404(User, id=user_id, company=request.user.company)
-    
-    # --- FIX: Fetch the teams for the dropdown ---
     teams = Team.objects.filter(company=request.user.company)
-    # ---------------------------------------------
     
-    # Get all potential managers (exclude the person being edited)
     active_users = User.objects.filter(
         company=request.user.company, 
         is_approved=True
@@ -120,22 +103,19 @@ def edit_employee(request, user_id):
 
     if request.method == 'POST':
         employee.designation = request.POST.get('designation')
-        employee.section = request.POST.get('section') # Update Section
+        employee.section = request.POST.get('section')
         
-        # Update Team
         team_id = request.POST.get('team_id')
         if team_id:
             employee.team = Team.objects.get(id=team_id)
         else:
-            employee.team = None # Allow unassigning team
+            employee.team = None
         
-        # SAFETY: Only allow changing Role if you are NOT editing yourself
         if employee.id != request.user.id:
             role_input = request.POST.get('role') 
             if role_input:
                 employee.role = role_input 
 
-        # Handle Reporting Manager
         reports_to_id = request.POST.get('reports_to')
         if reports_to_id:
             employee.reports_to = User.objects.get(id=reports_to_id)
@@ -149,11 +129,43 @@ def edit_employee(request, user_id):
     return render(request, 'dashboard/edit_employee.html', {
         'employee': employee,
         'active_users': active_users,
-        'teams': teams # <--- PASS TEAMS HERE
+        'teams': teams
     })
 
+@login_required
+def delete_employee(request, user_id):
+    if request.user.role != 'HR':
+        messages.error(request, "Access Denied.")
+        return redirect('dashboard')
+
+    employee = get_object_or_404(User, id=user_id, company=request.user.company)
+
+    if employee.id == request.user.id:
+        messages.error(request, "You cannot delete your own account.")
+        return redirect('hr_dashboard')
+
+    username = employee.username
+    employee.delete()
+    
+    messages.success(request, f"Employee '{username}' has been permanently deleted.")
+    return redirect('hr_dashboard')
+
+@login_required
+def manage_teams(request):
+    if request.user.role != 'HR':
+        return redirect('dashboard')
+    
+    if request.method == 'POST':
+        team_name = request.POST.get('team_name')
+        if team_name:
+            Team.objects.get_or_create(company=request.user.company, name=team_name)
+            messages.success(request, f"Team '{team_name}' created.")
+    
+    teams = Team.objects.filter(company=request.user.company)
+    return render(request, 'dashboard/manage_teams.html', {'teams': teams})
+
 # ==========================================
-# 3. LEAVE MANAGEMENT VIEWS
+# 3. LEAVE MANAGEMENT (UPDATED WITH NOTIFY & SMTP)
 # ==========================================
 
 @login_required
@@ -161,43 +173,80 @@ def apply_leave(request):
     balance, created = LeaveBalance.objects.get_or_create(user=request.user)
 
     if request.method == 'POST':
-        # Pass 'user' to form to filter approvers correctly
         form = LeaveApplicationForm(request.user, request.POST) 
         if form.is_valid():
             leave = form.save(commit=False)
             leave.user = request.user
             
-            # Balance Check
-            days = leave.days_requested
-            if leave.leave_type == 'Casual' and balance.casual_leave < days:
-                messages.error(request, f"Insufficient Casual Leaves.")
-                return redirect('apply_leave')
-            elif leave.leave_type == 'Sick' and balance.sick_leave < days:
-                messages.error(request, f"Insufficient Sick Leaves.")
-                return redirect('apply_leave')
+            # --- LOGIC 1: BALANCE CHECK (Skip for 'Notify') ---
+            if leave.leave_type != 'Notify':
+                days = leave.days_requested
+                if leave.leave_type == 'Casual' and balance.casual_leave < days:
+                    messages.error(request, f"Insufficient Casual Leaves.")
+                    return redirect('apply_leave')
+                elif leave.leave_type == 'Sick' and balance.sick_leave < days:
+                    messages.error(request, f"Insufficient Sick Leaves.")
+                    return redirect('apply_leave')
+            else:
+                # Notifications are auto-approved
+                leave.status = 'Approved' 
 
             leave.save()
+            form.save_m2m() # Saves the approvers
             
-            # Save ManyToMany Data (Approvers)
-            form.save_m2m() 
+            # --- LOGIC 2: SEND EMAIL VIA DYNAMIC SMTP ---
+            company = request.user.company
+            recipients = leave.approvers.all()
+            recipient_emails = [u.email for u in recipients]
             
-            # EMAIL NOTIFICATION
-            approver_emails = [u.email for u in leave.approvers.all()]
-            send_mail(
-                subject=f'Leave Request: {request.user.username}',
-                message=f'{request.user.username} has requested leave from {leave.start_date} to {leave.end_date}.\nReason: {leave.reason}\n\nPlease login to approve.',
-                from_email=settings.DEFAULT_FROM_EMAIL if hasattr(settings, 'DEFAULT_FROM_EMAIL') else 'noreply@hrms.com',
-                recipient_list=approver_emails,
-                fail_silently=True
-            )
+            connection = None
+            sender_email = settings.DEFAULT_FROM_EMAIL
             
-            messages.success(request, "Leave request sent to tagged approvers.")
+            if company.smtp_email and company.smtp_password:
+                try:
+                    connection = get_connection(
+                        host=company.smtp_server,
+                        port=company.smtp_port,
+                        username=company.smtp_email,
+                        password=company.smtp_password,
+                        use_tls=True
+                    )
+                    sender_email = company.smtp_email
+                except Exception as e:
+                    print(f"SMTP Connection Error: {e}")
+
+            subject = f"Leave Notification: {request.user.username}" if leave.leave_type == 'Notify' else f"Leave Request: {request.user.username}"
+            email_msg = f"User: {request.user.username}\nType: {leave.leave_type}\nDate: {leave.start_date} to {leave.end_date}\nReason: {leave.reason}"
+            
+            if recipient_emails:
+                send_mail(
+                    subject=subject,
+                    message=email_msg,
+                    from_email=sender_email,
+                    recipient_list=recipient_emails,
+                    connection=connection, 
+                    fail_silently=True
+                )
+            
+            # --- LOGIC 3: CREATE PERSISTENT APP NOTIFICATIONS ---
+            for receiver in recipients:
+                Notification.objects.create(
+                    recipient=receiver,
+                    sender=request.user,
+                    title=subject,
+                    message=email_msg
+                )
+
+            if leave.leave_type == 'Notify':
+                messages.success(request, "Notification sent successfully.")
+            else:
+                messages.success(request, "Leave request sent to approvers.")
+                
             return redirect('dashboard')
     else:
         form = LeaveApplicationForm(user=request.user) 
     
     return render(request, 'dashboard/apply_leave.html', {'form': form, 'balance': balance})
-
 
 @login_required
 def manage_quota(request, user_id):
@@ -217,10 +266,8 @@ def manage_quota(request, user_id):
     
     return render(request, 'dashboard/manage_quota.html', {'form': form, 'employee': employee})
 
-
 @login_required
 def leave_requests_list(request):
-    # Show requests where 'approvers' contains ME and status is Pending
     my_approvals = LeaveRequest.objects.filter(
         approvers=request.user, 
         status='Pending'
@@ -228,13 +275,11 @@ def leave_requests_list(request):
     
     return render(request, 'dashboard/leave_requests_list.html', {'pending_leaves': my_approvals})
 
-
 @login_required
 @transaction.atomic
 def action_leave(request, leave_id, action):
     leave = get_object_or_404(LeaveRequest, id=leave_id)
     
-    # Security: Ensure the person acting was actually tagged
     if request.user not in leave.approvers.all():
         messages.error(request, "You are not authorized to approve this leave.")
         return redirect('leave_requests_list')
@@ -243,7 +288,6 @@ def action_leave(request, leave_id, action):
     days = leave.days_requested
 
     if action == 'approve':
-        # 1. Deduct Balance
         if leave.leave_type == 'Casual':
             if balance.casual_leave >= days:
                 balance.casual_leave -= days
@@ -259,7 +303,6 @@ def action_leave(request, leave_id, action):
                 messages.error(request, "User has insufficient balance.")
                 return redirect('leave_requests_list')
 
-        # 2. Auto-Update Attendance Calendar
         current_date = leave.start_date
         while current_date <= leave.end_date:
             AttendanceRecord.objects.update_or_create(
@@ -284,41 +327,27 @@ def action_leave(request, leave_id, action):
     
     return redirect('leave_requests_list')
 
-
 # ==========================================
-# 4. ATTENDANCE & CALENDAR VIEWS
+# 4. ATTENDANCE & PAYROLL VIEWS
 # ==========================================
 
 @login_required
 def view_attendance(request, user_id):
     target_user = get_object_or_404(User, id=user_id)
     
-    # ==========================================
-    # 1. SMART PERMISSION CHECK
-    # ==========================================
     is_manager = False
-    
-    # Rule 1: HR can edit everyone
     if request.user.role == 'HR':
         is_manager = True
-        
-    # Rule 2: The Direct "Reports To" Manager can edit their subordinate
     elif target_user.reports_to == request.user:
         is_manager = True
-        
-    # Rule 3: Team Leader/Manager fallback
-    # If I am a Manager/TL in the SAME team, and the target is an Employee
     elif target_user.team and (target_user.team == request.user.team):
         if request.user.role in ['Manager', 'TL'] and target_user.role == 'Employee':
             is_manager = True
     
     if not is_manager and request.user != target_user:
-         messages.error(request, "Access Denied. You are not the manager of this user.")
+         messages.error(request, "Access Denied.")
          return redirect('dashboard')
 
-    # ==========================================
-    # 2. DATE & CALENDAR LOGIC
-    # ==========================================
     today = date.today()
     try:
         year = int(request.GET.get('year', today.year))
@@ -329,11 +358,8 @@ def view_attendance(request, user_id):
     first_weekday, num_days = calendar.monthrange(year, month)
     start_index = (first_weekday + 1) % 7 
 
-    # ==========================================
-    # 3. MANAGER ACTIONS (EDIT ATTENDANCE & SALARY)
-    # ==========================================
+    # --- MANAGER ACTIONS ---
     if request.method == 'POST' and is_manager:
-        # --- A. UPDATE PAYROLL DETAILS ---
         if 'update_salary' in request.POST:
             target_user.monthly_salary = Decimal(request.POST.get('monthly_salary', 0))
             target_user.esi_percentage = Decimal(request.POST.get('esi_percentage', 0))
@@ -341,18 +367,31 @@ def view_attendance(request, user_id):
             target_user.save()
             messages.success(request, "Payroll details updated.")
 
-        # --- B. UPDATE ATTENDANCE ---
         elif 'date' in request.POST:
             date_str = request.POST.get('date')
             new_status = request.POST.get('status')
             time_str = request.POST.get('login_time')
             
+            # Special Rule: 3rd Late removes previous 2nd Late
+            if new_status == '3rd Late':
+                current_date_obj = datetime.strptime(date_str, "%Y-%m-%d").date()
+                prev_late = AttendanceRecord.objects.filter(
+                    user=target_user,
+                    date__year=year,
+                    date__month=month,
+                    status='2nd Late',
+                    date__lt=current_date_obj
+                ).order_by('-date').first()
+
+                if prev_late:
+                    prev_late.status = 'Present'
+                    prev_late.save()
+                    messages.info(request, f"Rule Applied: '2nd Late' on {prev_late.date} reset to 'Present' due to new '3rd Late'.")
+
             new_time = None
             if time_str:
-                try:
-                    new_time = datetime.strptime(time_str, '%H:%M').time()
-                except ValueError:
-                    pass 
+                try: new_time = datetime.strptime(time_str, '%H:%M').time()
+                except ValueError: pass 
             
             AttendanceRecord.objects.update_or_create(
                 user=target_user,
@@ -367,31 +406,20 @@ def view_attendance(request, user_id):
             
         return redirect(f"{request.path}?year={year}&month={month}")
 
-    # ==========================================
-    # 4. FETCH DATA
-    # ==========================================
-    records = AttendanceRecord.objects.filter(
-        user=target_user,
-        date__year=year,
-        date__month=month
-    )
+    # --- FETCH DATA ---
+    records = AttendanceRecord.objects.filter(user=target_user, date__year=year, date__month=month)
     attendance_map = {record.date: record for record in records}
-
+    
     try:
-        holiday_qs = PublicHoliday.objects.filter(
-            company=target_user.company,
-            date__year=year,
-            date__month=month
-        )
+        holiday_qs = PublicHoliday.objects.filter(company=target_user.company, date__year=year, date__month=month)
         holiday_dates = {h.date for h in holiday_qs}
     except NameError:
         holiday_dates = set()
 
     month_days = []
-    
     stats = {
-        'absent': 0, 'leave': 0, 'wfh': 0, 'present': 0, 
-        'holiday': 0, 
+        'absent': 0, 'leave': 0, 'wfh': 0, 'present': 0, 'holiday': 0, 
+        'late_2nd': 0, 'late_3rd': 0, 
         'total_days': num_days
     }
     
@@ -406,61 +434,49 @@ def view_attendance(request, user_id):
         if record:
             status = record.status
         else:
-            if current_date in holiday_dates:
-                status = 'Holiday'
-            else:
-                status = 'Present'
+            if current_date in holiday_dates: status = 'Holiday'
+            else: status = 'Present'
         
         # Stats
         if status == 'Absent': stats['absent'] += 1
-        elif status == 'Leave': 
-            stats['leave'] += 1
-            stats['present'] += 1
-        elif status == 'WFH': 
-            stats['wfh'] += 1
-            stats['present'] += 1
-        elif status == 'Present': 
-            stats['present'] += 1
-        elif status == 'Holiday':
-            stats['holiday'] += 1
+        elif status == 'Leave': stats['leave'] += 1
+        elif status == 'WFH': stats['wfh'] += 1; stats['present'] += 1
+        elif status == 'Present': stats['present'] += 1
+        elif status == 'Holiday': stats['holiday'] += 1
+        elif status == '2nd Late': stats['late_2nd'] += 1 
+        elif status == '3rd Late': stats['late_3rd'] += 1 
             
         month_days.append({
-            'day': day,
-            'date': current_date,
-            'status': status,
-            'login_time': login_time,
-            'day_name': current_date.strftime("%A")
+            'day': day, 'date': current_date, 'status': status, 'login_time': login_time, 'day_name': current_date.strftime("%A")
         })
 
-    # ==========================================
-    # 5. PAYROLL CALCULATION LOGIC
-    # ==========================================
+    # --- SALARY CALCULATION ---
     salary_data = {}
     base_salary = target_user.monthly_salary
     
     if base_salary > 0:
-        # A. Per Day Salary
         per_day_salary = base_salary / Decimal(num_days)
         
-        # B. Deduction for Absent Days
-        absent_deduction = per_day_salary * Decimal(stats['absent'])
+        full_day_cuts = stats['absent'] + stats['late_3rd']
+        full_deduction = per_day_salary * Decimal(full_day_cuts)
         
-        gross_salary = base_salary - absent_deduction
+        half_day_cuts = stats['late_2nd']
+        half_deduction = (per_day_salary / Decimal(2)) * Decimal(half_day_cuts)
         
-        # C. ESI Deduction (Percentage of Gross)
+        gross_salary = base_salary - (full_deduction + half_deduction)
+        
         esi_deduction = (gross_salary * target_user.esi_percentage) / Decimal(100)
-        
-        # D. Professional Tax (Fixed)
         p_tax = target_user.professional_tax
-        
-        # E. Final Net Salary
         net_salary = gross_salary - esi_deduction - p_tax
 
         salary_data = {
             'base_salary': round(base_salary, 2),
             'per_day': round(per_day_salary, 2),
-            'absent_count': stats['absent'],
-            'absent_deduction': round(absent_deduction, 2),
+            'absent_days': stats['absent'],
+            'late_3rd_days': stats['late_3rd'],
+            'full_day_deduction': round(full_deduction, 2),
+            'late_2nd_days': stats['late_2nd'],
+            'half_day_deduction': round(half_deduction, 2),
             'gross_salary': round(gross_salary, 2),
             'esi_pct': target_user.esi_percentage,
             'esi_amount': round(esi_deduction, 2),
@@ -471,51 +487,36 @@ def view_attendance(request, user_id):
     return render(request, 'dashboard/view_attendance.html', {
         'target_user': target_user,
         'month_days': month_days,
-        'year': year,
-        'month': month,
+        'year': year, 'month': month,
         'month_name': calendar.month_name[month],
-        'is_manager': is_manager, 
+        'is_manager': is_manager,
         'stats': stats,
-        'salary_data': salary_data # <--- Passed to template
+        'salary_data': salary_data
     })
 
-# dashboard/views.py
+# ==========================================
+# 5. NEW FEATURES (SMTP & NOTIFICATIONS)
+# ==========================================
 
 @login_required
-def delete_employee(request, user_id):
-    # 1. Permission Check: Only HR
+def smtp_settings(request):
     if request.user.role != 'HR':
-        messages.error(request, "Access Denied.")
         return redirect('dashboard')
-
-    # 2. Fetch User: Must be in the same company
-    employee = get_object_or_404(User, id=user_id, company=request.user.company)
-
-    # 3. Safety Check: Prevent Self-Deletion
-    if employee.id == request.user.id:
-        messages.error(request, "You cannot delete your own account.")
-        return redirect('hr_dashboard')
-
-    # 4. Perform Deletion
-    # This will cascade delete their Leaves, Attendance, and Balance automatically.
-    username = employee.username
-    employee.delete()
     
-    messages.success(request, f"Employee '{username}' has been permanently deleted.")
-    return redirect('hr_dashboard')
-
-
-
-@login_required
-def manage_teams(request):
-    if request.user.role != 'HR':
-        return redirect('dashboard')
+    company = request.user.company
     
     if request.method == 'POST':
-        team_name = request.POST.get('team_name')
-        if team_name:
-            Team.objects.get_or_create(company=request.user.company, name=team_name)
-            messages.success(request, f"Team '{team_name}' created.")
+        form = SMTPSettingsForm(request.POST, instance=company)
+        if form.is_valid():
+            form.save()
+            messages.success(request, "SMTP Settings Saved Successfully.")
+            return redirect('hr_dashboard')
+    else:
+        form = SMTPSettingsForm(instance=company)
     
-    teams = Team.objects.filter(company=request.user.company)
-    return render(request, 'dashboard/manage_teams.html', {'teams': teams})
+    return render(request, 'dashboard/smtp_settings.html', {'form': form})
+
+@login_required
+def notifications_view(request):
+    notifs = Notification.objects.filter(recipient=request.user)
+    return render(request, 'dashboard/notifications.html', {'notifications': notifs})

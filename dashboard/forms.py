@@ -1,13 +1,21 @@
 from django import forms
 from django.db.models import Q
 from .models import LeaveRequest, LeaveBalance
-from accounts.models import User
+from accounts.models import User, Company # Import Company
+
+class SMTPSettingsForm(forms.ModelForm):
+    class Meta:
+        model = Company
+        fields = ['smtp_email', 'smtp_password', 'smtp_server', 'smtp_port']
+        widgets = {
+            'smtp_password': forms.PasswordInput(render_value=True), # Allow viewing existing password
+        }
 
 class LeaveApplicationForm(forms.ModelForm):
     approvers = forms.ModelMultipleChoiceField(
         queryset=User.objects.none(), 
         widget=forms.CheckboxSelectMultiple,
-        label="Select Approvers (Manager / Team Leaders)"
+        label="Select Approvers / Notify To"
     )
 
     class Meta:
@@ -37,7 +45,7 @@ class LeaveApplicationForm(forms.ModelForm):
             criteria |= (Q(team=user.team) & Q(role__in=['TL', 'Manager']))
 
         # 4. Execute Query
-        # Ensure we filter by Company and exclude the user themselves (if they are a TL)
+        # Ensure we filter by Company and exclude the user themselves
         approver_options = User.objects.filter(criteria, company=user.company).exclude(id=user.id)
         
         # 5. Fallback: If list is empty (No Boss & No Team Leaders found), show HR/Directors
@@ -46,12 +54,12 @@ class LeaveApplicationForm(forms.ModelForm):
                 company=user.company, 
                 role__in=['HR', 'Director']
             ).exclude(id=user.id)
-            self.fields['approvers'].label = "No Team Leaders found. Tag HR/Director:"
+            self.fields['approvers'].label = "Notify HR/Director:"
 
         # 6. Set the final queryset
         self.fields['approvers'].queryset = approver_options
         
-        # Auto-select the direct boss if they exist (User can uncheck if needed)
+        # Auto-select the direct boss if they exist
         if user.reports_to:
             self.fields['approvers'].initial = [user.reports_to]
 

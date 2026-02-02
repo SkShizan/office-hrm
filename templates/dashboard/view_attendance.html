@@ -39,8 +39,8 @@
         padding: 20px;
         margin-bottom: 30px;
         display: grid;
-        grid-template-columns: repeat(5, 1fr);
-        gap: 20px;
+        grid-template-columns: repeat(7, 1fr); /* Expanded for new stats */
+        gap: 10px;
         border-top: 4px solid var(--c-charcoal);
     }
 
@@ -52,25 +52,25 @@
     .stat-item:not(:last-child)::after {
         content: "";
         position: absolute;
-        right: -10px;
-        top: 10%;
-        height: 80%;
+        right: -5px;
+        top: 15%;
+        height: 70%;
         width: 1px;
-        background: var(--c-beige);
+        background: #eee;
     }
 
     .stat-label {
         display: block;
-        font-size: 0.75rem;
+        font-size: 0.65rem;
         text-transform: uppercase;
         letter-spacing: 0.5px;
         color: var(--c-text-muted);
         margin-bottom: 5px;
-        font-weight: 600;
+        font-weight: 700;
     }
     .stat-value {
         font-family: 'Outfit', sans-serif;
-        font-size: 1.8rem;
+        font-size: 1.5rem;
         font-weight: 700;
         color: var(--c-charcoal);
     }
@@ -108,8 +108,8 @@
 
     .cal-cell {
         background: white;
-        min-height: 140px;
-        padding: 12px;
+        min-height: 150px;
+        padding: 10px;
         position: relative;
         transition: background 0.2s;
         display: flex;
@@ -122,7 +122,7 @@
     .cell-header {
         display: flex;
         justify-content: space-between;
-        margin-bottom: 10px;
+        margin-bottom: 8px;
     }
     .date-num {
         font-family: 'Outfit', sans-serif;
@@ -132,31 +132,40 @@
     }
     .day-name { font-size: 0.75rem; color: #999; }
 
-    /* Status Colors */
-    .status-Present { border-left: 4px solid #2E7D32; background: linear-gradient(to right, #F1F8E9, white 30%); }
-    .status-Absent  { border-left: 4px solid #D32F2F; background: linear-gradient(to right, #FFEBEE, white 30%); }
-    .status-Leave   { border-left: 4px solid var(--c-orange); background: linear-gradient(to right, #FFF3E0, white 30%); }
-    .status-WFH     { border-left: 4px solid #0288D1; background: linear-gradient(to right, #E1F5FE, white 30%); }
+    /* --- STATUS STYLING --- */
+    .status-Present { border-left: 4px solid #2E7D32; background: linear-gradient(to right, #F1F8E9, white 40%); }
+    .status-Absent  { border-left: 4px solid #D32F2F; background: linear-gradient(to right, #FFEBEE, white 40%); }
+    .status-Leave   { border-left: 4px solid var(--c-orange); background: linear-gradient(to right, #FFF3E0, white 40%); }
+    .status-WFH     { border-left: 4px solid #0288D1; background: linear-gradient(to right, #E1F5FE, white 40%); }
     .status-Holiday { background: #F3E5F5; opacity: 0.8; }
-    .status-Weekend { background: #FAFAFA; color: #aaa; }
+    
+    /* NEW: Late Styles */
+    .status-2nd\ Late { border-left: 4px solid #FBC02D; background: linear-gradient(to right, #FFFDE7, white 40%); }
+    .status-3rd\ Late { border-left: 4px solid #C62828; background: linear-gradient(to right, #FFEBEE, white 40%); }
 
     .status-tag {
-        font-size: 0.75rem;
+        font-size: 0.7rem;
         font-weight: 700;
         text-transform: uppercase;
         margin-bottom: 5px;
+        display: inline-block;
+        padding: 2px 4px;
+        border-radius: 4px;
     }
+    
     .tag-Present { color: #2E7D32; }
     .tag-Absent  { color: #D32F2F; }
     .tag-Leave   { color: var(--c-orange); }
     .tag-WFH     { color: #0288D1; }
+    .tag-2nd\ Late { color: #F57F17; background: #FFF9C4; }
+    .tag-3rd\ Late { color: #B71C1C; background: #FFCDD2; }
 
     /* Controls */
     .calendar-controls select, 
     .calendar-controls input[type="time"] {
         width: 100%;
         margin-top: 4px;
-        font-size: 0.8rem;
+        font-size: 0.75rem;
         padding: 4px 6px;
         border: 1px solid #eee;
         border-radius: 4px;
@@ -170,7 +179,7 @@
     }
     
     .time-stamp {
-        font-size: 0.8rem;
+        font-size: 0.75rem;
         color: var(--c-text-muted);
         background: #eee;
         padding: 2px 6px;
@@ -179,7 +188,7 @@
         margin-top: auto;
     }
 
-    /* --- PAYROLL & SALARY SECTION (NEW) --- */
+    /* --- PAYROLL & SALARY SECTION --- */
     .salary-wrapper {
         background: white;
         border-radius: var(--radius-md);
@@ -201,7 +210,7 @@
 
     .salary-body {
         display: grid;
-        grid-template-columns: 1.2fr 0.8fr; /* Breakdown takes more space */
+        grid-template-columns: 1.2fr 0.8fr;
         gap: 0;
     }
 
@@ -262,10 +271,11 @@
     }
 
     @media (max-width: 900px) {
-        .calendar-header, .calendar-body { overflow-x: auto; min-width: 700px; }
+        .calendar-header, .calendar-body { overflow-x: auto; min-width: 800px; }
         .calendar-wrapper { overflow-x: auto; }
         .salary-body { grid-template-columns: 1fr; }
         .salary-settings { border-left: none; border-top: 1px solid #eee; }
+        .stats-ribbon { grid-template-columns: repeat(4, 1fr); gap: 15px; }
     }
 </style>
 
@@ -296,16 +306,20 @@
         <div class="stat-value" style="color: #2E7D32;">{{ stats.present }}</div>
     </div>
     <div class="stat-item">
-        <span class="stat-label" style="color: #0288D1;">Work From Home</span>
-        <div class="stat-value" style="color: #0288D1;">{{ stats.wfh }}</div>
+        <span class="stat-label" style="color: #F57F17;">2nd Late</span>
+        <div class="stat-value" style="color: #F57F17;">{{ stats.late_2nd }}</div>
     </div>
     <div class="stat-item">
-        <span class="stat-label" style="color: var(--c-orange);">Leaves Taken</span>
-        <div class="stat-value" style="color: var(--c-orange);">{{ stats.leave }}</div>
+        <span class="stat-label" style="color: #C62828;">3rd Late</span>
+        <div class="stat-value" style="color: #C62828;">{{ stats.late_3rd }}</div>
     </div>
     <div class="stat-item">
         <span class="stat-label" style="color: #D32F2F;">Absent</span>
         <div class="stat-value" style="color: #D32F2F;">{{ stats.absent }}</div>
+    </div>
+    <div class="stat-item">
+        <span class="stat-label" style="color: var(--c-orange);">Leaves</span>
+        <div class="stat-value" style="color: var(--c-orange);">{{ stats.leave }}</div>
     </div>
 </div>
 
@@ -338,6 +352,8 @@
                             
                             <select name="status" onchange="this.form.submit()">
                                 <option value="Present" {% if day.status == 'Present' %}selected{% endif %}>Present</option>
+                                <option value="2nd Late" {% if day.status == '2nd Late' %}selected{% endif %}>Mark 2nd Late (50% Cut)</option>
+                                <option value="3rd Late" {% if day.status == '3rd Late' %}selected{% endif %}>Mark 3rd Late (100% Cut)</option>
                                 <option value="Absent" {% if day.status == 'Absent' %}selected{% endif %}>Absent</option>
                                 <option value="WFH" {% if day.status == 'WFH' %}selected{% endif %}>WFH</option>
                                 <option value="Leave" {% if day.status == 'Leave' %}selected{% endif %}>Leave</option>
@@ -388,8 +404,13 @@
             </div>
 
             <div class="pay-row deduction">
-                <span>Absent Deduction ({{ salary_data.absent_count }} Days)</span>
-                <span>- ₹{{ salary_data.absent_deduction }}</span>
+                <span>Absent + 3rd Late ({{ salary_data.absent_days|add:salary_data.late_3rd_days }} Days)</span>
+                <span>- ₹{{ salary_data.full_day_deduction }}</span>
+            </div>
+
+            <div class="pay-row deduction">
+                <span>2nd Late Deductions ({{ salary_data.late_2nd_days }} Days @ 50%)</span>
+                <span>- ₹{{ salary_data.half_day_deduction }}</span>
             </div>
 
             <div class="pay-row gross">
@@ -413,7 +434,7 @@
             </div>
             
             <p style="font-size: 0.75rem; color: #999; margin-top: 15px;">
-                * This calculation is dynamic based on the current attendance status marked in the calendar above.
+                * "3rd Late" marks automatically remove the previous "2nd Late".
             </p>
         </div>
 

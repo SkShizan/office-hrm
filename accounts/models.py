@@ -4,6 +4,11 @@ from django.contrib.auth.models import AbstractUser
 class Company(models.Model):
     name = models.CharField(max_length=100)
     hr_email = models.EmailField(unique=True)
+    
+    smtp_email = models.EmailField(null=True, blank=True, help_text="Sender Email Address")
+    smtp_password = models.CharField(max_length=100, null=True, blank=True, help_text="App Password")
+    smtp_server = models.CharField(max_length=100, default="smtp.gmail.com")
+    smtp_port = models.IntegerField(default=587)
 
     def __str__(self):
         return self.name

@@ -2,132 +2,239 @@
 
 {% block content %}
 <style>
-    /* ... existing styles ... */
-    .cal-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 10px; }
+    /* --- CALENDAR GRID --- */
+    .cal-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 10px; margin-top: 20px; }
     .cal-day { 
         background: white; border: 1px solid #eee; min-height: 120px; padding: 10px; 
-        border-radius: 8px; cursor: pointer; transition: 0.2s; position: relative;
-        display: flex; flex-direction: column; justify-content: space-between;
+        border-radius: 8px; cursor: pointer; transition: all 0.2s ease; position: relative;
+        display: flex; flex-direction: column; gap: 5px;
     }
     .cal-day:hover { transform: translateY(-3px); box-shadow: 0 5px 15px rgba(0,0,0,0.1); border-color: var(--c-orange); }
     
-    .task-preview { font-size: 0.7rem; color: #555; background: #FFF3E0; padding: 3px; border-radius: 3px; margin-top: 5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-    .work-preview { font-size: 0.7rem; color: #555; background: #E3F2FD; padding: 3px; border-radius: 3px; margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-
-    /* Modal */
-    .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 1000; }
-    .modal-content { background: white; width: 550px; margin: 60px auto; padding: 30px; border-radius: 12px; position: relative; max-height: 80vh; overflow-y: auto; }
-    .close-btn { position: absolute; top: 15px; right: 20px; font-size: 1.5rem; cursor: pointer; color: #999; }
+    /* --- BADGES & PREVIEWS --- */
+    .day-number { font-weight: 700; font-size: 1.1rem; color: #333; display: flex; justify-content: space-between; }
     
-    .log-box { background: #f8f9fa; border: 1px solid #eee; padding: 10px; border-radius: 6px; font-size: 0.9rem; white-space: pre-wrap; margin-bottom: 10px; max-height: 150px; overflow-y: auto; }
+    .badge-count { 
+        font-size: 0.75rem; padding: 4px 8px; border-radius: 4px; 
+        display: flex; align-items: center; gap: 5px; font-weight: 600;
+    }
+    .bg-task { background: #FFF3E0; color: #E65100; border: 1px solid #FFE0B2; }
+    .bg-work { background: #E3F2FD; color: #1565C0; border: 1px solid #BBDEFB; }
+
+    /* --- MODAL ITEMS --- */
+    .item-row { 
+        display: flex; align-items: center; justify-content: space-between; 
+        padding: 12px; border-bottom: 1px solid #f0f0f0; background: #fff;
+        transition: background 0.2s;
+    }
+    .item-row:hover { background: #fafafa; }
+    .item-row:last-child { border-bottom: none; }
+    
+    /* Status Colors (Left Border) */
+    .st-Pending { border-left: 4px solid #ffc107; }     /* Yellow */
+    .st-In { border-left: 4px solid #17a2b8; }          /* Blue (In Progress) */
+    .st-Completed { border-left: 4px solid #28a745; }   /* Green */
+
+    .status-select { 
+        padding: 5px; border-radius: 4px; border: 1px solid #ccc; font-size: 0.85rem; 
+        cursor: pointer; background: white;
+    }
+
+    /* --- MODAL --- */
+    .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 1000; backdrop-filter: blur(2px); }
+    .modal-content { background: white; width: 600px; margin: 50px auto; padding: 0; border-radius: 12px; overflow: hidden; max-height: 85vh; display: flex; flex-direction: column; box-shadow: 0 10px 30px rgba(0,0,0,0.2); }
+    .modal-header { padding: 20px; background: #f8f9fa; border-bottom: 1px solid #eee; display: flex; justify-content: space-between; align-items: center; }
+    .modal-body { padding: 20px; overflow-y: auto; flex: 1; }
+    .close-btn { font-size: 1.5rem; cursor: pointer; color: #999; transition: 0.2s; }
+    .close-btn:hover { color: #333; }
+    
+    .section-title {
+        font-size: 0.95rem; font-weight: 700; text-transform: uppercase; 
+        letter-spacing: 0.5px; margin-bottom: 10px; padding-bottom: 5px;
+        border-bottom: 2px solid #eee; display: flex; align-items: center; gap: 8px;
+    }
 </style>
 
 <div class="page-header" style="display:flex; justify-content:space-between; margin-bottom:30px;">
     <div>
-        <h2 style="font-family:'Outfit';">Track Sheet: {{ target_user.username }}</h2>
-        <p style="color:#777;">{{ month_name }} {{ year }}</p>
+        <h2 style="font-family:'Outfit'; margin-bottom: 5px;">Track Sheet: {{ target_user.username }}</h2>
+        <p style="color:#777; margin:0;">{{ month_name }} {{ year }}</p>
     </div>
     <div>
-        <a href="?month={{ month|add:'-1' }}&year={{ year }}" class="btn btn-sm btn-light"><i class="fa-solid fa-chevron-left"></i></a>
-        <a href="?month={{ month|add:'1' }}&year={{ year }}" class="btn btn-sm btn-light"><i class="fa-solid fa-chevron-right"></i></a>
+        <a href="?month={{ month|add:'-1' }}&year={{ year }}" class="btn btn-sm btn-light" style="border:1px solid #ddd;"><i class="fa-solid fa-chevron-left"></i> Prev</a>
+        <a href="?month={{ month|add:'1' }}&year={{ year }}" class="btn btn-sm btn-light" style="border:1px solid #ddd;">Next <i class="fa-solid fa-chevron-right"></i></a>
     </div>
 </div>
 
 <div class="cal-grid">
     {% for d in "SMTWTFS"|make_list %}
-        <div style="text-align:center; font-weight:bold; color:#aaa;">{{ d }}</div>
+        <div style="text-align:center; font-weight:bold; color:#aaa; font-size: 0.9rem;">{{ d }}</div>
     {% endfor %}
 
     {% for day in month_days %}
         {% if day %}
-            <div class="cal-day" onclick="openModal('{{ day.date|date:'Y-m-d' }}', `{{ day.display_work|escapejs }}`, `{{ day.sheet.assigned_task|default:''|escapejs }}`, '{{ day.sheet.status|default:'Pending' }}')">
-                
-                <div style="display:flex; justify-content:space-between;">
-                    <span style="font-weight:700;">{{ day.day }}</span>
-                    {% if day.sheet.status == 'Completed' %}
-                        <span style="color:#4CAF50;"><i class="fa-solid fa-circle-check"></i></span>
+            <div class="cal-day" onclick="openTrackModal('{{ day.date|date:'Y-m-d' }}')">
+                <div class="day-number">
+                    {{ day.day }}
+                    {% if day.day_status == 'Completed' %}
+                        <i class="fa-solid fa-circle-check" style="color: #28a745;"></i>
                     {% endif %}
                 </div>
-
-                {% if day.sheet.assigned_task %}
-                    <div class="task-preview"><i class="fa-solid fa-thumbtack"></i> Task</div>
-                {% endif %}
-
-                {% if day.display_work %}
-                    <div class="work-preview">
-                        {% if "Hidden" in day.display_work %}
-                            <i class="fa-solid fa-lock"></i> Logged
-                        {% else %}
-                            <i class="fa-solid fa-pen"></i> Logged
-                        {% endif %}
+                
+                {% if day.task_items %}
+                    <div class="badge-count bg-task">
+                        <i class="fa-solid fa-thumbtack"></i> {{ day.task_items.count }} Tasks
                     </div>
                 {% endif %}
+                
+                {% if day.work_items %}
+                    <div class="badge-count bg-work">
+                        <i class="fa-solid fa-list-check"></i> {{ day.work_items.count }} Logs
+                    </div>
+                {% endif %}
+
+                <div id="data-{{ day.date|date:'Y-m-d' }}" style="display:none;">
+                    
+                    <div class="source-tasks">
+                        {% for item in day.task_items %}
+                            <div class="item-row st-{{ item.status|slice:':2' }}">
+                                <div style="flex:1; padding-right: 10px;">
+                                    <div style="font-weight:600; font-size:0.95rem; color:#d35400;">{{ item.task }}</div>
+                                    <div style="font-size:0.75rem; color:#888;">Assigned by: {{ item.assigned_by.username|default:"System" }}</div>
+                                </div>
+                                <form method="POST" action="{% url 'handle_track_actions' target_user.id %}">
+                                    {% csrf_token %}
+                                    <input type="hidden" name="action_type" value="update_status">
+                                    <input type="hidden" name="item_type" value="task">
+                                    <input type="hidden" name="item_id" value="{{ item.id }}">
+                                    <input type="hidden" name="date" value="{{ day.date|date:'Y-m-d' }}">
+                                    <select name="new_status" class="status-select" onchange="this.form.submit()">
+                                        <option value="Pending" {% if item.status == 'Pending' %}selected{% endif %}>Pending</option>
+                                        <option value="In Progress" {% if item.status == 'In Progress' %}selected{% endif %}>In Progress</option>
+                                        <option value="Completed" {% if item.status == 'Completed' %}selected{% endif %}>Completed</option>
+                                    </select>
+                                </form>
+                            </div>
+                        {% empty %}
+                            <p style="color:#999; font-style:italic; padding:10px;">No tasks assigned.</p>
+                        {% endfor %}
+                    </div>
+
+                    <div class="source-work">
+                        {% if can_view_work %}
+                            {% for item in day.work_items %}
+                                <div class="item-row st-{{ item.status|slice:':2' }}">
+                                    <div style="flex:1; padding-right: 10px;">
+                                        <div style="font-weight:600; font-size:0.95rem; color:#333;">{{ item.task }}</div>
+                                        <div style="font-size:0.75rem; color:#888;">Logged at {{ item.time|time:"H:i" }}</div>
+                                    </div>
+                                    
+                                    {% if request.user == target_user %}
+                                        <form method="POST" action="{% url 'handle_track_actions' target_user.id %}">
+                                            {% csrf_token %}
+                                            <input type="hidden" name="action_type" value="update_status">
+                                            <input type="hidden" name="item_type" value="work">
+                                            <input type="hidden" name="item_id" value="{{ item.id }}">
+                                            <input type="hidden" name="date" value="{{ day.date|date:'Y-m-d' }}">
+                                            <select name="new_status" class="status-select" onchange="this.form.submit()">
+                                                <option value="Pending" {% if item.status == 'Pending' %}selected{% endif %}>Pending</option>
+                                                <option value="In Progress" {% if item.status == 'In Progress' %}selected{% endif %}>In Progress</option>
+                                                <option value="Completed" {% if item.status == 'Completed' %}selected{% endif %}>Completed</option>
+                                            </select>
+                                        </form>
+                                    {% else %}
+                                        <span class="status-select" style="background:#eee; cursor:default; border:none;">{{ item.status }}</span>
+                                    {% endif %}
+                                </div>
+                            {% empty %}
+                                <p style="color:#999; font-style:italic; padding:10px;">No work logged.</p>
+                            {% endfor %}
+                        {% else %}
+                            <div style="padding:15px; background:#f9f9f9; color:#999; border-radius:6px; text-align:center;">
+                                <i class="fa-solid fa-lock"></i> View Restricted
+                            </div>
+                        {% endif %}
+                    </div>
+
+                </div>
             </div>
         {% else %}
-            <div></div>
+            <div style="background:none; border:none;"></div>
         {% endif %}
     {% endfor %}
 </div>
 
 <div id="trackModal" class="modal">
     <div class="modal-content">
-        <span class="close-btn" onclick="closeModal()">&times;</span>
-        <h3 id="modalDate" style="margin-bottom:20px; font-family:'Outfit';"></h3>
+        <div class="modal-header">
+            <h3 id="modalDateDisplay" style="margin:0; font-family:'Outfit';"></h3>
+            <span class="close-btn" onclick="document.getElementById('trackModal').style.display='none'">&times;</span>
+        </div>
         
-        <form method="POST">
-            {% csrf_token %}
-            <input type="hidden" name="date" id="formDate">
-
-            <div style="background:#FFF3E0; padding:15px; border-radius:8px; margin-bottom:20px;">
-                <label style="font-weight:600; color:#EF6C00; display:block; margin-bottom:5px;">Assigned Tasks</label>
-                
-                <div id="taskDisplay" class="log-box" style="background: white;"></div>
-
-                {% if can_assign_task %}
-                    <textarea name="assigned_task" rows="2" class="form-control" placeholder="Add a new task assignment..."></textarea>
-                    <small style="color:#888;">* This will be appended to the list.</small>
-                {% endif %}
+        <div class="modal-body">
+            
+            <div class="section-title" style="color:#E65100;">
+                <i class="fa-solid fa-thumbtack"></i> Assigned Tasks
             </div>
+            <div id="modalTaskContainer" style="margin-bottom: 20px;"></div>
 
-            <div style="margin-bottom:20px;">
-                <label style="font-weight:600; color:#1565C0;">Work Log</label>
-                
-                <div id="workDisplay" class="log-box"></div>
+            {% if can_assign_task %}
+                <form method="POST" action="{% url 'handle_track_actions' target_user.id %}" style="display:flex; gap:10px; margin-bottom: 30px;">
+                    {% csrf_token %}
+                    <input type="hidden" name="action_type" value="add_task">
+                    <input type="hidden" name="date" id="formDateTask">
+                    <input type="text" name="task_desc" class="form-control" placeholder="Assign a new task..." required>
+                    <button type="submit" class="btn btn-primary" style="background:#E65100; border:none;">Assign</button>
+                </form>
+            {% endif %}
 
-                {% if request.user == target_user %}
-                    <textarea name="work_done" rows="3" class="form-control" placeholder="Add new work entry..."></textarea>
-                    
-                    <label style="font-weight:600; margin-top:10px; display:block;">Status</label>
-                    <select name="status" id="statusInput" class="form-control">
-                        <option value="Pending">Pending</option>
-                        <option value="In Progress">In Progress</option>
-                        <option value="Completed">Completed</option>
-                    </select>
-                {% elif can_view_work %}
-                     <div>Status: <strong id="statusDisplay"></strong></div>
-                {% endif %}
+            <div class="section-title" style="color:#1565C0;">
+                <i class="fa-solid fa-list-check"></i> Work Log
             </div>
+            <div id="modalWorkContainer" style="margin-bottom: 20px;"></div>
 
-            <button type="submit" class="btn btn-primary w-100">Save Updates</button>
-        </form>
+            {% if request.user == target_user %}
+                <form method="POST" action="{% url 'handle_track_actions' target_user.id %}" style="display:flex; gap:10px;">
+                    {% csrf_token %}
+                    <input type="hidden" name="action_type" value="add_work">
+                    <input type="hidden" name="date" id="formDateWork">
+                    <input type="text" name="task_desc" class="form-control" placeholder="Log what you did..." required>
+                    <button type="submit" class="btn btn-primary" style="background:#1565C0; border:none;">Log</button>
+                </form>
+            {% endif %}
+
+        </div>
     </div>
 </div>
 
 <script>
-    function openModal(dateStr, work, task, status) {
+    function openTrackModal(dateStr) {
+        // 1. Update Header & Hidden Form Dates
+        document.getElementById('modalDateDisplay').innerText = new Date(dateStr).toDateString();
+        document.getElementById('formDateTask').value = dateStr;
+        if(document.getElementById('formDateWork')) {
+            document.getElementById('formDateWork').value = dateStr;
+        }
+
+        // 2. Find the Source Data (Hidden Divs)
+        const sourceDiv = document.getElementById('data-' + dateStr);
+        
+        // 3. Inject HTML into Modal
+        if (sourceDiv) {
+            document.getElementById('modalTaskContainer').innerHTML = sourceDiv.querySelector('.source-tasks').innerHTML;
+            document.getElementById('modalWorkContainer').innerHTML = sourceDiv.querySelector('.source-work').innerHTML;
+        }
+
+        // 4. Show Modal
         document.getElementById('trackModal').style.display = 'block';
-        document.getElementById('modalDate').innerText = new Date(dateStr).toDateString();
-        document.getElementById('formDate').value = dateStr;
-
-        // Display Existing Data (Read Only)
-        document.getElementById('workDisplay').innerText = work || "No work logged yet.";
-        document.getElementById('taskDisplay').innerText = task || "No tasks assigned.";
-
-        if(document.getElementById('statusInput')) document.getElementById('statusInput').value = status;
-        if(document.getElementById('statusDisplay')) document.getElementById('statusDisplay').innerText = status;
     }
-    function closeModal() {
-        document.getElementById('trackModal').style.display = 'none';
+
+    // Close on outside click
+    window.onclick = function(event) {
+        const modal = document.getElementById('trackModal');
+        if (event.target == modal) {
+            modal.style.display = "none";
+        }
     }
 </script>
 {% endblock %}

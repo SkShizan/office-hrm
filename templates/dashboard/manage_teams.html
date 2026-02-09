@@ -1,22 +1,177 @@
 {% extends 'base.html' %}
+
 {% block content %}
-<h2>Manage Teams</h2>
-<div class="card">
+<style>
+    /* --- HEADER --- */
+    .page-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 30px;
+    }
+    .page-title {
+        font-family: 'Outfit', sans-serif;
+        font-size: 1.8rem;
+        color: var(--c-charcoal);
+    }
+
+    /* --- CREATE CARD --- */
+    .create-card {
+        background: white;
+        padding: 30px;
+        border-radius: var(--radius-md);
+        box-shadow: var(--shadow-card);
+        max-width: 600px;
+        margin-bottom: 50px;
+        border-left: 5px solid var(--c-orange);
+    }
+
+    .form-row {
+        display: flex;
+        gap: 15px;
+        align-items: flex-end; /* Aligns input and button bottom */
+    }
+    
+    .form-group {
+        flex: 1;
+    }
+    
+    .form-group label {
+        display: block;
+        margin-bottom: 8px;
+        font-weight: 600;
+        color: #555;
+        font-size: 0.9rem;
+    }
+    
+    .form-control {
+        width: 100%;
+        padding: 12px;
+        border: 2px solid #eee;
+        border-radius: 6px;
+        font-size: 1rem;
+        transition: border-color 0.2s;
+        background: #fcfcfc;
+    }
+    .form-control:focus {
+        border-color: var(--c-orange);
+        outline: none;
+        background: white;
+    }
+    
+    .btn-create {
+        background: var(--c-charcoal);
+        color: white;
+        padding: 12px 25px;
+        border: none;
+        border-radius: 6px;
+        font-weight: 600;
+        cursor: pointer;
+        transition: background 0.2s;
+        height: 48px; /* Match input height */
+    }
+    .btn-create:hover { background: black; }
+
+    /* --- TEAM GRID --- */
+    .section-label {
+        font-family: 'Outfit';
+        font-size: 1.2rem;
+        margin-bottom: 20px;
+        color: #444;
+        border-bottom: 1px solid #eee;
+        padding-bottom: 10px;
+    }
+
+    .team-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+        gap: 20px;
+    }
+    
+    .team-card {
+        background: white;
+        padding: 20px;
+        border-radius: 12px;
+        border: 1px solid rgba(0,0,0,0.05);
+        box-shadow: 0 4px 10px rgba(0,0,0,0.03);
+        display: flex;
+        align-items: center;
+        gap: 15px;
+        transition: transform 0.2s;
+    }
+    .team-card:hover {
+        transform: translateY(-3px);
+        border-color: var(--c-beige);
+        box-shadow: 0 8px 20px rgba(0,0,0,0.06);
+    }
+    
+    .team-icon {
+        width: 45px;
+        height: 45px;
+        background: #fff7e6; /* light orange tint */
+        color: var(--c-orange);
+        border-radius: 10px;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        font-size: 1.2rem;
+    }
+    
+    .team-name {
+        font-weight: 700;
+        color: #333;
+        font-size: 1.1rem;
+    }
+
+    .empty-state {
+        grid-column: 1 / -1;
+        color: #999;
+        font-style: italic;
+        background: #f9f9f9;
+        padding: 40px;
+        border-radius: 8px;
+        text-align: center;
+    }
+</style>
+
+<div class="page-header">
+    <h2 class="page-title"><i class="fa-solid fa-sitemap"></i> Team Management</h2>
+    <a href="{% url 'hr_dashboard' %}" class="btn" style="background: #e0e0e0; color: #333;">
+        <i class="fa-solid fa-arrow-left"></i> Back to Dashboard
+    </a>
+</div>
+
+<div class="create-card">
     <form method="POST">
         {% csrf_token %}
-        <label>Create New Team:</label>
-        <input type="text" name="team_name" placeholder="e.g. Team Alpha" required>
-        <button type="submit" style="margin-top:10px;">Create Team</button>
+        <div class="form-row">
+            <div class="form-group">
+                <label>Team Name</label>
+                <input type="text" name="team_name" class="form-control" placeholder="e.g. Marketing, DevOps, Sales..." required>
+            </div>
+            <button type="submit" class="btn-create">
+                <i class="fa-solid fa-plus"></i> Create Team
+            </button>
+        </div>
     </form>
 </div>
 
-<h3>Existing Teams</h3>
-<ul>
+<h3 class="section-label">Existing Company Teams</h3>
+
+<div class="team-grid">
     {% for team in teams %}
-        <li>{{ team.name }}</li>
+        <div class="team-card">
+            <div class="team-icon">
+                <i class="fa-solid fa-users"></i>
+            </div>
+            <div class="team-name">{{ team.name }}</div>
+        </div>
     {% empty %}
-        <li>No teams created yet.</li>
+        <div class="empty-state">
+            <i class="fa-solid fa-folder-open" style="font-size: 2rem; margin-bottom: 10px; opacity: 0.5;"></i>
+            <p>No teams created yet. Use the form above to get started.</p>
+        </div>
     {% endfor %}
-</ul>
-<a href="{% url 'hr_dashboard' %}">Back to Dashboard</a>
+</div>
+
 {% endblock %}

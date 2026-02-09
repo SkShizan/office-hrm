@@ -2,7 +2,7 @@ from django import forms
 from django.contrib.auth.forms import UserCreationForm
 from .models import User, Company
 
-class SignUpForm(UserCreationForm):
+class EmployeeSignupForm(UserCreationForm):
     # Replace HR Email input with a Company Dropdown
     company = forms.ModelChoiceField(
         queryset=Company.objects.all(),

@@ -52,7 +52,7 @@ class User(AbstractUser):
     monthly_salary = models.DecimalField(max_digits=10, decimal_places=2, default=0.00)
     esi_percentage = models.DecimalField(max_digits=5, decimal_places=2, default=0.75, help_text="Percentage (e.g., 0.75)")
     professional_tax = models.DecimalField(max_digits=10, decimal_places=2, default=0.00, help_text="Fixed Amount (e.g., 120)")
-    
+    otp = models.CharField(max_length=6, null=True, blank=True)
     is_approved = models.BooleanField(default=False)
     
     # Reporting Manager

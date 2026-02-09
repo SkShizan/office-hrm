@@ -9,7 +9,7 @@ from django.core.mail import send_mail, get_connection
 from django.conf import settings
 from django.db.models import Q
 from accounts.models import User, Team
-from .models import LeaveRequest, LeaveBalance, AttendanceRecord, PublicHoliday, Notification, TrackSheet
+from .models import LeaveRequest, LeaveBalance, AttendanceRecord, PublicHoliday, Notification, TrackSheet, TaskItem, WorkItem
 from .forms import LeaveApplicationForm, LeaveAllocationForm, SMTPSettingsForm
 
 # ==========================================
@@ -29,30 +29,31 @@ def dashboard(request):
         return redirect('hr_dashboard')
     
     else:
-        # 1. My Team (Existing)
+        # 1. My Team
         my_team_members = User.objects.none()
         if user.role in ['Manager', 'TL']:
             my_team_members = User.objects.filter(
                 Q(reports_to=user) | Q(team=user.team)
             ).filter(is_approved=True).exclude(id=user.id).distinct()
 
-        # 2. FETCH TEAMS (For the Dropdown)
+        # 2. Fetch Teams
         teams = Team.objects.filter(company=user.company)
 
-        # 3. Global Employee List (With Team Info)
+        # 3. All Colleagues
         all_colleagues = User.objects.filter(
             company=user.company, 
             is_approved=True
         ).exclude(id=user.id).select_related('team')
 
-        # 4. Tasks I Assigned
-        tasks_i_assigned = TrackSheet.objects.filter(
-            assigned_by=user
-        ).select_related('user').order_by('-date')[:10]
+        # 4. Tasks I Assigned (FIXED: Now querying TaskItem)
+        tasks_i_assigned = TaskItem.objects.filter(
+            assigned_by=user,
+            sender_archived=False
+        ).select_related('track_sheet', 'track_sheet__user').order_by('-track_sheet__date')[:10]
 
         return render(request, 'dashboard/employee_dashboard.html', {
             'my_team_members': my_team_members,
-            'teams': teams,                 # <--- Added this
+            'teams': teams,
             'all_colleagues': all_colleagues,
             'tasks_i_assigned': tasks_i_assigned
         })
@@ -558,21 +559,16 @@ def notifications_view(request):
 
 
 
+# ... existing imports ...
+
 @login_required
 def track_sheet(request, user_id):
     target_user = get_object_or_404(User, id=user_id)
     viewer = request.user
     
     # --- PERMISSIONS ---
-    # 1. Who can see the Work Logs? (Owner, Manager, HR)
-    can_view_work = False
-    if viewer == target_user:
-        can_view_work = True
-    elif target_user.reports_to == viewer or viewer.role == 'HR':
-        can_view_work = True
-    
-    # 2. Who can Assign Tasks? (EVERYONE can assign to anyone now)
-    can_assign_task = True 
+    can_view_work = (viewer == target_user) or (target_user.reports_to == viewer) or (viewer.role == 'HR')
+    can_assign_task = True # Anyone can assign (as per previous request)
 
     # --- DATE LOGIC ---
     today = date.today()
@@ -582,60 +578,17 @@ def track_sheet(request, user_id):
     except ValueError:
         year, month = today.year, today.month
 
-    # --- SAVE DATA ---
-    if request.method == 'POST':
-        date_str = request.POST.get('date')
-        track, created = TrackSheet.objects.get_or_create(user=target_user, date=date_str)
-        
-        # 1. Employee Logging Work (APPEND MODE)
-        if viewer == target_user:
-            new_work = request.POST.get('work_done')
-            status_update = request.POST.get('status')
-            
-            if new_work:
-                timestamp = datetime.now().strftime("%H:%M")
-                # If existing work exists, append new line. If not, start fresh.
-                if track.work_done:
-                    track.work_done += f"\n• [{timestamp}] {new_work}"
-                else:
-                    track.work_done = f"• [{timestamp}] {new_work}"
-            
-            if status_update:
-                track.status = status_update
-                
-            track.save()
-            messages.success(request, "Work log added.")
-
-        # 2. Assigning Task (APPEND MODE) - Anyone can do this
-        if can_assign_task:
-            new_task = request.POST.get('assigned_task')
-            if new_task:
-                # Append task with signature
-                signature = f"[Assigned by {viewer.username}]"
-                if track.assigned_task:
-                    track.assigned_task += f"\n• {new_task} {signature}"
-                else:
-                    track.assigned_task = f"• {new_task} {signature}"
-                
-                track.assigned_by = viewer # Updates to latest assigner
-                track.save()
-                
-                # Notification
-                Notification.objects.create(
-                    recipient=target_user,
-                    sender=viewer,
-                    title=f"New Task Assigned: {date_str}",
-                    message=f"Task: {new_task}\nAssigned By: {viewer.username}"
-                )
-                messages.success(request, f"Task assigned to {target_user.username}.")
-
-        return redirect(f"{request.path}?year={year}&month={month}")
-
     # --- CALENDAR DATA ---
     first_weekday, num_days = calendar.monthrange(year, month)
     start_index = (first_weekday + 1) % 7
     
-    sheets = TrackSheet.objects.filter(user=target_user, date__year=year, date__month=month)
+    # Prefetch related items to avoid N+1 queries
+    sheets = TrackSheet.objects.filter(
+        user=target_user, 
+        date__year=year, 
+        date__month=month
+    ).prefetch_related('work_items', 'task_items')
+    
     sheet_map = {s.date: s for s in sheets}
     
     month_days = []
@@ -645,16 +598,26 @@ def track_sheet(request, user_id):
         current_date = date(year, month, day)
         sheet = sheet_map.get(current_date)
         
-        # Privacy Filter
-        if sheet and not can_view_work:
-            has_work = bool(sheet.work_done)
-            sheet_work_display = "🔒 Hidden (View Restricted)" if has_work else ""
-        else:
-            sheet_work_display = sheet.work_done if sheet else ""
+        # Prepare data for template
+        work_items = sheet.work_items.all() if (sheet and can_view_work) else []
+        task_items = sheet.task_items.all() if sheet else []
+        
+        # Calculate summary status for the day (optional logic)
+        day_status = "Pending"
+        if work_items:
+            if all(w.status == 'Completed' for w in work_items):
+                day_status = "Completed"
+            elif any(w.status == 'In Progress' for w in work_items):
+                day_status = "In Progress"
 
         month_days.append({
-            'day': day, 'date': current_date, 'sheet': sheet,
-            'display_work': sheet_work_display
+            'day': day, 
+            'date': current_date, 
+            'sheet': sheet,
+            'work_items': work_items,
+            'task_items': task_items,
+            'day_status': day_status,
+            'can_view_work': can_view_work # Pass this down for privacy check
         })
 
     return render(request, 'dashboard/track_sheet.html', {
@@ -665,3 +628,82 @@ def track_sheet(request, user_id):
         'can_view_work': can_view_work,
         'can_assign_task': can_assign_task,
     })
+
+@login_required
+def handle_track_actions(request, user_id):
+    """ Helper view to handle Add/Update/Delete of items via POST """
+    if request.method != 'POST':
+        return redirect('dashboard')
+
+    target_user = get_object_or_404(User, id=user_id)
+    action_type = request.POST.get('action_type') # 'add_work', 'add_task', 'update_status'
+    date_str = request.POST.get('date')
+    
+    # Get or Create Sheet
+    sheet, _ = TrackSheet.objects.get_or_create(user=target_user, date=date_str)
+    
+    # 1. ADD WORK LOG
+    if action_type == 'add_work' and request.user == target_user:
+        task_desc = request.POST.get('task_desc')
+        if task_desc:
+            WorkItem.objects.create(track_sheet=sheet, task=task_desc, status='Pending')
+            messages.success(request, "Work item added.")
+
+    # 2. ADD ASSIGNED TASK
+    elif action_type == 'add_task':
+        task_desc = request.POST.get('task_desc')
+        if task_desc:
+            TaskItem.objects.create(
+                track_sheet=sheet, 
+                task=task_desc, 
+                assigned_by=request.user, 
+                status='Pending'
+            )
+            # Notification
+            Notification.objects.create(
+                recipient=target_user,
+                sender=request.user,
+                title=f"New Task Assigned: {date_str}",
+                message=f"Task: {task_desc}\nBy: {request.user.username}"
+            )
+            messages.success(request, "Task assigned.")
+
+    # 3. UPDATE STATUS (Work or Task)
+    elif action_type == 'update_status':
+        item_type = request.POST.get('item_type') # 'work' or 'task'
+        item_id = request.POST.get('item_id')
+        new_status = request.POST.get('new_status')
+        
+        if item_type == 'work' and request.user == target_user:
+            item = get_object_or_404(WorkItem, id=item_id, track_sheet=sheet)
+            item.status = new_status
+            item.save()
+        
+        elif item_type == 'task':
+            # Both Assignee (target_user) and Assigner (request.user) can update status
+            item = get_object_or_404(TaskItem, id=item_id, track_sheet=sheet)
+            item.status = new_status
+            item.save()
+            
+    # Redirect back to track sheet
+    date_obj = datetime.strptime(date_str, "%Y-%m-%d").date()
+    return redirect(f"/track-sheet/{user_id}/?year={date_obj.year}&month={date_obj.month}")
+# ... existing imports ...
+
+@login_required
+def delete_task_assignment(request, task_id):
+    # FIXED: Get TaskItem instead of TrackSheet
+    task_item = get_object_or_404(TaskItem, id=task_id)
+    
+    # Security: Ensure current user is the one who assigned it
+    if task_item.assigned_by != request.user:
+        messages.error(request, "Permission Denied. You did not assign this task.")
+        return redirect('dashboard')
+    
+    # Archive Logic
+    task_item.sender_archived = True
+    task_item.save()
+    
+    messages.success(request, "Task hidden from your dashboard.")
+    return redirect('dashboard')
+

@@ -268,24 +268,40 @@
                 <thead>
                     <tr>
                         <th>Assigned To</th>
+                        <th>Task</th>
                         <th>Date</th>
                         <th>Status</th>
-                        <th>Action</th>
+                        <th style="text-align: right;">Actions</th>
                     </tr>
                 </thead>
                 <tbody>
-                    {% for task in tasks_i_assigned %}
+                    {% for item in tasks_i_assigned %}
                     <tr>
                         <td>
-                            <strong>{{ task.user.username }}</strong><br>
-                            <span style="font-size:0.75rem; color:#888;">{{ task.user.team.name|default:"No Team" }}</span>
-                        </td>
-                        <td>{{ task.date }}</td>
-                        <td>
-                            <span class="status-badge st-{{ task.status|cut:' ' }}">{{ task.status }}</span>
+                            <strong>{{ item.track_sheet.user.username }}</strong><br>
+                            <span style="font-size:0.75rem; color:#888;">{{ item.track_sheet.user.team.name|default:"No Team" }}</span>
                         </td>
                         <td>
-                            <a href="{% url 'track_sheet' task.user.id %}?year={{ task.date.year }}&month={{ task.date.month }}" style="color:#007bff; font-size:0.85rem;">View</a>
+                            <div style="font-size:0.9rem; color:#333; max-width: 200px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
+                                {{ item.task }}
+                            </div>
+                        </td>
+                        <td>{{ item.track_sheet.date }}</td>
+                        <td>
+                            <span class="status-badge st-{{ item.status|cut:' ' }}">{{ item.status }}</span>
+                        </td>
+                        <td style="text-align: right;">
+                            <a href="{% url 'track_sheet' item.track_sheet.user.id %}?year={{ item.track_sheet.date.year }}&month={{ item.track_sheet.date.month }}" 
+                               class="btn-icon btn-edit" title="View Task" style="text-decoration:none;">
+                                <i class="fa-solid fa-eye"></i>
+                            </a>
+
+                            <form action="{% url 'delete_task_assignment' item.id %}" method="POST" style="display:inline-block;" onsubmit="return confirm('Remove from your dashboard? The employee will still see this task.');">
+                                {% csrf_token %}
+                                <button type="submit" class="btn-icon btn-del" title="Remove from Dashboard">
+                                    <i class="fa-solid fa-eye-slash"></i>
+                                </button>
+                            </form>
                         </td>
                     </tr>
                     {% endfor %}

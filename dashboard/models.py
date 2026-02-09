@@ -20,7 +20,7 @@ class LeaveRequest(models.Model):
     LEAVE_TYPES = (
         ('Casual', 'Casual Leave'),
         ('Sick', 'Sick Leave'),
-        ('Notify', 'Notify Only (No Approval Needed)'), # <--- ADDED THIS
+        ('Notify', 'Notify Only (No Approval Needed)'),
     )
     STATUS_CHOICES = (
         ('Pending', 'Pending'),
@@ -33,7 +33,7 @@ class LeaveRequest(models.Model):
     # Tagging multiple people (Team Leader, Manager, HR)
     approvers = models.ManyToManyField(User, related_name='incoming_leave_requests')
     
-    leave_type = models.CharField(max_length=20, choices=LEAVE_TYPES) # Increased max_length
+    leave_type = models.CharField(max_length=20, choices=LEAVE_TYPES)
     start_date = models.DateField()
     end_date = models.DateField()
     reason = models.TextField()
@@ -61,8 +61,8 @@ class AttendanceRecord(models.Model):
         ('Absent', 'Absent'),
         ('WFH', 'Work From Home'),
         ('Leave', 'On Leave'),
-        ('2nd Late', '2nd Late (Half Day)'), # <--- ADDED
-        ('3rd Late', '3rd Late (Full Day)'), # <--- ADDED
+        ('2nd Late', '2nd Late (Half Day)'),
+        ('3rd Late', '3rd Late (Full Day)'),
         ('Holiday', 'Holiday'),
     )
 
@@ -96,7 +96,7 @@ class PublicHoliday(models.Model):
 
 
 # ==========================================
-# 5. NOTIFICATIONS (NEW)
+# 5. NOTIFICATIONS
 # ==========================================
 class Notification(models.Model):
     recipient = models.ForeignKey(User, on_delete=models.CASCADE, related_name='notifications')
@@ -113,26 +113,59 @@ class Notification(models.Model):
         return f"Notif for {self.recipient.username}: {self.title}"
 
 
+# ==========================================
+# 6. TRACK SHEET (Updated for Granular Items)
+# ==========================================
 
 class TrackSheet(models.Model):
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='track_sheets')
+    date = models.DateField()
+    
+    # NOTE: These old fields are replaced by WorkItem and TaskItem models below.
+    # You can keep them for historical data or remove them if starting fresh.
+    # work_done = models.TextField(null=True, blank=True)
+    # assigned_task = models.TextField(null=True, blank=True)
+    # assigned_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True)
+    # status = models.CharField(max_length=20, default='Pending')
+    # sender_archived = models.BooleanField(default=False)
+
+    class Meta:
+        unique_together = ('user', 'date')
+
+    def __str__(self):
+        return f"Track: {self.user.username} on {self.date}"
+
+
+class WorkItem(models.Model):
+    """ Individual work logs entered by the employee """
     STATUS_CHOICES = (
         ('Pending', 'Pending'),
         ('In Progress', 'In Progress'),
         ('Completed', 'Completed'),
     )
-
-    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='track_sheets')
-    date = models.DateField()
-    
-    # Work Log
-    work_done = models.TextField(null=True, blank=True)
-    
-    # Task Assignment
-    assigned_task = models.TextField(null=True, blank=True)
-    assigned_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True)
-    
-    # NEW: Status
+    track_sheet = models.ForeignKey(TrackSheet, on_delete=models.CASCADE, related_name='work_items')
+    task = models.CharField(max_length=255)
+    time = models.TimeField(auto_now_add=True)
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='Pending')
 
-    class Meta:
-        unique_together = ('user', 'date')
+    def __str__(self):
+        return f"Work: {self.task} ({self.status})"
+
+
+class TaskItem(models.Model):
+    """ Individual tasks assigned by managers """
+    STATUS_CHOICES = (
+        ('Pending', 'Pending'),
+        ('In Progress', 'In Progress'),
+        ('Completed', 'Completed'),
+    )
+    track_sheet = models.ForeignKey(TrackSheet, on_delete=models.CASCADE, related_name='task_items')
+    task = models.CharField(max_length=255)
+    assigned_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True)
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='Pending')
+    
+    # Archive/Hide for the manager (Outbox view)
+    sender_archived = models.BooleanField(default=False)
+
+    def __str__(self):
+        return f"Task: {self.task} ({self.status})"

@@ -11,6 +11,7 @@ urlpatterns = [
     path('login/', auth_views.LoginView.as_view(template_name='accounts/login.html'), name='login'),
     path('logout/', auth_views.LogoutView.as_view(), name='logout'),
     path('signup/', account_views.signup, name='signup'),
+    path('verify-otp/', account_views.verify_otp, name='verify_otp'),
 
     # Dashboard
     path('', dash_views.dashboard, name='dashboard'), # Root URL
@@ -35,4 +36,6 @@ urlpatterns = [
 
     # Add inside urlpatterns:
     path('track-sheet/<int:user_id>/', dash_views.track_sheet, name='track_sheet'),
+    path('track-actions/<int:user_id>/', dash_views.handle_track_actions, name='handle_track_actions'),
+    path('task/archive/<int:task_id>/', dash_views.delete_task_assignment, name='delete_task_assignment'),
 ]

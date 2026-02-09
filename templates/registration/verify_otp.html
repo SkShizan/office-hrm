@@ -1,0 +1,27 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div style="max-width: 400px; margin: 50px auto; background: white; padding: 30px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); text-align: center;">
+    
+    <h2 style="font-family: 'Outfit', sans-serif; color: var(--c-charcoal); margin-bottom: 10px;">Verify Email</h2>
+    <p style="color: #666; font-size: 0.9rem; margin-bottom: 25px;">
+        We have sent a 6-digit OTP to <strong>{{ email }}</strong>
+    </p>
+
+    <form method="POST">
+        {% csrf_token %}
+        <div style="margin-bottom: 20px;">
+            <input type="text" name="otp" placeholder="Enter 6-Digit OTP" maxlength="6" required
+                   style="width: 100%; padding: 12px; font-size: 1.2rem; text-align: center; letter-spacing: 5px; border: 2px solid var(--c-beige); border-radius: 6px;">
+        </div>
+
+        <button type="submit" style="width: 100%; background: var(--c-orange); color: white; padding: 12px; border: none; border-radius: 6px; font-weight: bold; cursor: pointer; transition: 0.2s;">
+            Verify Account
+        </button>
+    </form>
+
+    <div style="margin-top: 20px;">
+        <a href="{% url 'signup' %}" style="color: #999; font-size: 0.85rem; text-decoration: none;">Wrong email? Signup again</a>
+    </div>
+</div>
+{% endblock %}

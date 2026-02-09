@@ -9,12 +9,14 @@ from django.core.mail import send_mail, get_connection
 from django.conf import settings
 from django.db.models import Q
 from accounts.models import User, Team
-from .models import LeaveRequest, LeaveBalance, AttendanceRecord, PublicHoliday, Notification
+from .models import LeaveRequest, LeaveBalance, AttendanceRecord, PublicHoliday, Notification, TrackSheet
 from .forms import LeaveApplicationForm, LeaveAllocationForm, SMTPSettingsForm
 
 # ==========================================
 # 1. CORE DASHBOARD ROUTING
 # ==========================================
+
+# In dashboard/views.py
 
 @login_required
 def dashboard(request):
@@ -27,14 +29,32 @@ def dashboard(request):
         return redirect('hr_dashboard')
     
     else:
+        # 1. My Team (Existing)
         my_team_members = User.objects.none()
         if user.role in ['Manager', 'TL']:
             my_team_members = User.objects.filter(
                 Q(reports_to=user) | Q(team=user.team)
             ).filter(is_approved=True).exclude(id=user.id).distinct()
 
+        # 2. FETCH TEAMS (For the Dropdown)
+        teams = Team.objects.filter(company=user.company)
+
+        # 3. Global Employee List (With Team Info)
+        all_colleagues = User.objects.filter(
+            company=user.company, 
+            is_approved=True
+        ).exclude(id=user.id).select_related('team')
+
+        # 4. Tasks I Assigned
+        tasks_i_assigned = TrackSheet.objects.filter(
+            assigned_by=user
+        ).select_related('user').order_by('-date')[:10]
+
         return render(request, 'dashboard/employee_dashboard.html', {
-            'my_team_members': my_team_members
+            'my_team_members': my_team_members,
+            'teams': teams,                 # <--- Added this
+            'all_colleagues': all_colleagues,
+            'tasks_i_assigned': tasks_i_assigned
         })
 
 # ==========================================
@@ -250,9 +270,19 @@ def apply_leave(request):
 
 @login_required
 def manage_quota(request, user_id):
-    if request.user.role != 'HR': return redirect('dashboard')
-    
+    # 1. Fetch the employee first
     employee = get_object_or_404(User, id=user_id)
+    
+    # 2. Define Permissions
+    is_hr = (request.user.role == 'HR')
+    is_manager = (employee.reports_to == request.user)
+
+    # 3. Check Access (Must be HR OR the Direct Manager)
+    if not (is_hr or is_manager):
+        messages.error(request, "Access Denied. You can only manage quota for your direct reports.")
+        return redirect('dashboard')
+    
+    # 4. Get or Create Balance
     balance, created = LeaveBalance.objects.get_or_create(user=employee)
     
     if request.method == 'POST':
@@ -260,7 +290,12 @@ def manage_quota(request, user_id):
         if form.is_valid():
             form.save()
             messages.success(request, f"Leave quota updated for {employee.username}")
-            return redirect('hr_dashboard')
+            
+            # 5. Smart Redirect
+            if is_hr:
+                return redirect('hr_dashboard')
+            else:
+                return redirect('dashboard') # Managers go back to employee dashboard
     else:
         form = LeaveAllocationForm(instance=balance)
     
@@ -520,3 +555,113 @@ def smtp_settings(request):
 def notifications_view(request):
     notifs = Notification.objects.filter(recipient=request.user)
     return render(request, 'dashboard/notifications.html', {'notifications': notifs})
+
+
+
+@login_required
+def track_sheet(request, user_id):
+    target_user = get_object_or_404(User, id=user_id)
+    viewer = request.user
+    
+    # --- PERMISSIONS ---
+    # 1. Who can see the Work Logs? (Owner, Manager, HR)
+    can_view_work = False
+    if viewer == target_user:
+        can_view_work = True
+    elif target_user.reports_to == viewer or viewer.role == 'HR':
+        can_view_work = True
+    
+    # 2. Who can Assign Tasks? (EVERYONE can assign to anyone now)
+    can_assign_task = True 
+
+    # --- DATE LOGIC ---
+    today = date.today()
+    try:
+        year = int(request.GET.get('year', today.year))
+        month = int(request.GET.get('month', today.month))
+    except ValueError:
+        year, month = today.year, today.month
+
+    # --- SAVE DATA ---
+    if request.method == 'POST':
+        date_str = request.POST.get('date')
+        track, created = TrackSheet.objects.get_or_create(user=target_user, date=date_str)
+        
+        # 1. Employee Logging Work (APPEND MODE)
+        if viewer == target_user:
+            new_work = request.POST.get('work_done')
+            status_update = request.POST.get('status')
+            
+            if new_work:
+                timestamp = datetime.now().strftime("%H:%M")
+                # If existing work exists, append new line. If not, start fresh.
+                if track.work_done:
+                    track.work_done += f"\n• [{timestamp}] {new_work}"
+                else:
+                    track.work_done = f"• [{timestamp}] {new_work}"
+            
+            if status_update:
+                track.status = status_update
+                
+            track.save()
+            messages.success(request, "Work log added.")
+
+        # 2. Assigning Task (APPEND MODE) - Anyone can do this
+        if can_assign_task:
+            new_task = request.POST.get('assigned_task')
+            if new_task:
+                # Append task with signature
+                signature = f"[Assigned by {viewer.username}]"
+                if track.assigned_task:
+                    track.assigned_task += f"\n• {new_task} {signature}"
+                else:
+                    track.assigned_task = f"• {new_task} {signature}"
+                
+                track.assigned_by = viewer # Updates to latest assigner
+                track.save()
+                
+                # Notification
+                Notification.objects.create(
+                    recipient=target_user,
+                    sender=viewer,
+                    title=f"New Task Assigned: {date_str}",
+                    message=f"Task: {new_task}\nAssigned By: {viewer.username}"
+                )
+                messages.success(request, f"Task assigned to {target_user.username}.")
+
+        return redirect(f"{request.path}?year={year}&month={month}")
+
+    # --- CALENDAR DATA ---
+    first_weekday, num_days = calendar.monthrange(year, month)
+    start_index = (first_weekday + 1) % 7
+    
+    sheets = TrackSheet.objects.filter(user=target_user, date__year=year, date__month=month)
+    sheet_map = {s.date: s for s in sheets}
+    
+    month_days = []
+    for _ in range(start_index): month_days.append(None)
+
+    for day in range(1, num_days + 1):
+        current_date = date(year, month, day)
+        sheet = sheet_map.get(current_date)
+        
+        # Privacy Filter
+        if sheet and not can_view_work:
+            has_work = bool(sheet.work_done)
+            sheet_work_display = "🔒 Hidden (View Restricted)" if has_work else ""
+        else:
+            sheet_work_display = sheet.work_done if sheet else ""
+
+        month_days.append({
+            'day': day, 'date': current_date, 'sheet': sheet,
+            'display_work': sheet_work_display
+        })
+
+    return render(request, 'dashboard/track_sheet.html', {
+        'target_user': target_user,
+        'month_days': month_days,
+        'year': year, 'month': month,
+        'month_name': calendar.month_name[month],
+        'can_view_work': can_view_work,
+        'can_assign_task': can_assign_task,
+    })

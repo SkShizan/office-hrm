@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>HRMS Professional</title>
+    <title>StayB HRMS</title>
     
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -75,6 +75,9 @@
             font-size: 1.5rem;
             color: var(--c-cream);
             letter-spacing: -0.5px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
         }
         .nav-brand span { color: var(--c-orange); }
 
@@ -84,6 +87,9 @@
             color: rgba(255,255,255,0.7);
             font-weight: 500;
             font-size: 0.95rem;
+            display: flex;
+            align-items: center;
+            gap: 6px;
         }
         .nav-link:hover { color: var(--c-orange); }
         .nav-link.active { color: var(--c-text-light); }
@@ -131,16 +137,19 @@
             color: white;
             padding: 8px 16px;
             font-size: 0.85rem;
+            display: flex;
+            align-items: center;
+            gap: 6px;
         }
         .btn-nav-logout:hover { background: rgba(255,255,255,0.2); }
 
         /* --- LAYOUT CONTAINER --- */
         .main-container {
             width: 100%;
-            max-width: 1000px; /* Wider for modern dashboards */
+            max-width: 1000px;
             margin: 40px auto;
             padding: 0 20px;
-            flex: 1; /* Pushes footer down */
+            flex: 1;
         }
 
         /* --- CARDS (Global Utility) --- */
@@ -178,18 +187,21 @@
         input[type="text"],
         input[type="email"],
         input[type="password"],
+        input[type="number"],
+        input[type="date"],
+        textarea,
         select {
             width: 100%;
             padding: 12px 15px;
             border: 2px solid var(--c-beige);
             border-radius: var(--radius-sm);
             font-size: 1rem;
-            background: #FFFEFA; /* Very subtle warm white */
+            background: #FFFEFA;
             transition: border-color 0.2s;
             font-family: 'Inter', sans-serif;
         }
 
-        input:focus, select:focus {
+        input:focus, select:focus, textarea:focus {
             outline: none;
             border-color: var(--c-orange);
             background: white;
@@ -216,6 +228,19 @@
             color: #2E7D32;
             border-color: #2E7D32;
         }
+        .alert-warning {
+            background-color: #FFFDE7;
+            color: #F57F17;
+            border-color: #F57F17;
+        }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            .navbar { height: auto; padding: 15px; }
+            .nav-container { flex-direction: column; gap: 15px; }
+            .nav-links { flex-direction: column; width: 100%; }
+            .user-menu { border-left: none; padding-left: 0; width: 100%; justify-content: center; }
+        }
 
     </style>
 </head>
@@ -224,21 +249,28 @@
     <nav class="navbar">
         <div class="nav-container">
             <a href="{% url 'dashboard' %}" class="nav-brand">
-                <i class="fa-solid fa-layer-group"></i> SBD<span> Leave Management System</span>
+                <i class="fa-solid fa-layer-group"></i> SBD<span>HRMS</span>
             </a>
 
             <div class="nav-links">
                 {% if user.is_authenticated %}
-                    <a href="{% url 'dashboard' %}" class="nav-link">Dashboard</a>
-                    <a href="{% url 'notifications_view' %}" class="nav-link">
-    <i class="fa-solid fa-bell"></i> Notifications
-</a>
+                    <a href="{% url 'dashboard' %}" class="nav-link">
+                        <i class="fa-solid fa-house"></i> Dashboard
+                    </a>
 
-{% if user.role == 'HR' %}
-    <a href="{% url 'smtp_settings' %}" class="nav-link">
-        <i class="fa-solid fa-server"></i> SMTP Settings
-    </a>
-{% endif %}
+                    <a href="{% url 'track_sheet' user.id %}" class="nav-link">
+                        <i class="fa-solid fa-list-check"></i> My Track
+                    </a>
+
+                    <a href="{% url 'notifications_view' %}" class="nav-link">
+                        <i class="fa-solid fa-bell"></i> Notifications
+                    </a>
+
+                    {% if user.role == 'HR' %}
+                        <a href="{% url 'smtp_settings' %}" class="nav-link">
+                            <i class="fa-solid fa-server"></i> SMTP
+                        </a>
+                    {% endif %}
                     
                     <div class="user-menu">
                         <span class="user-name">

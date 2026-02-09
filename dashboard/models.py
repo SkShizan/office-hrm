@@ -111,3 +111,28 @@ class Notification(models.Model):
 
     def __str__(self):
         return f"Notif for {self.recipient.username}: {self.title}"
+
+
+
+class TrackSheet(models.Model):
+    STATUS_CHOICES = (
+        ('Pending', 'Pending'),
+        ('In Progress', 'In Progress'),
+        ('Completed', 'Completed'),
+    )
+
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='track_sheets')
+    date = models.DateField()
+    
+    # Work Log
+    work_done = models.TextField(null=True, blank=True)
+    
+    # Task Assignment
+    assigned_task = models.TextField(null=True, blank=True)
+    assigned_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True)
+    
+    # NEW: Status
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='Pending')
+
+    class Meta:
+        unique_together = ('user', 'date')

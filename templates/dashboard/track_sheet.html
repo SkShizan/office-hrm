@@ -1,0 +1,133 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<style>
+    /* ... existing styles ... */
+    .cal-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 10px; }
+    .cal-day { 
+        background: white; border: 1px solid #eee; min-height: 120px; padding: 10px; 
+        border-radius: 8px; cursor: pointer; transition: 0.2s; position: relative;
+        display: flex; flex-direction: column; justify-content: space-between;
+    }
+    .cal-day:hover { transform: translateY(-3px); box-shadow: 0 5px 15px rgba(0,0,0,0.1); border-color: var(--c-orange); }
+    
+    .task-preview { font-size: 0.7rem; color: #555; background: #FFF3E0; padding: 3px; border-radius: 3px; margin-top: 5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .work-preview { font-size: 0.7rem; color: #555; background: #E3F2FD; padding: 3px; border-radius: 3px; margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+    /* Modal */
+    .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 1000; }
+    .modal-content { background: white; width: 550px; margin: 60px auto; padding: 30px; border-radius: 12px; position: relative; max-height: 80vh; overflow-y: auto; }
+    .close-btn { position: absolute; top: 15px; right: 20px; font-size: 1.5rem; cursor: pointer; color: #999; }
+    
+    .log-box { background: #f8f9fa; border: 1px solid #eee; padding: 10px; border-radius: 6px; font-size: 0.9rem; white-space: pre-wrap; margin-bottom: 10px; max-height: 150px; overflow-y: auto; }
+</style>
+
+<div class="page-header" style="display:flex; justify-content:space-between; margin-bottom:30px;">
+    <div>
+        <h2 style="font-family:'Outfit';">Track Sheet: {{ target_user.username }}</h2>
+        <p style="color:#777;">{{ month_name }} {{ year }}</p>
+    </div>
+    <div>
+        <a href="?month={{ month|add:'-1' }}&year={{ year }}" class="btn btn-sm btn-light"><i class="fa-solid fa-chevron-left"></i></a>
+        <a href="?month={{ month|add:'1' }}&year={{ year }}" class="btn btn-sm btn-light"><i class="fa-solid fa-chevron-right"></i></a>
+    </div>
+</div>
+
+<div class="cal-grid">
+    {% for d in "SMTWTFS"|make_list %}
+        <div style="text-align:center; font-weight:bold; color:#aaa;">{{ d }}</div>
+    {% endfor %}
+
+    {% for day in month_days %}
+        {% if day %}
+            <div class="cal-day" onclick="openModal('{{ day.date|date:'Y-m-d' }}', `{{ day.display_work|escapejs }}`, `{{ day.sheet.assigned_task|default:''|escapejs }}`, '{{ day.sheet.status|default:'Pending' }}')">
+                
+                <div style="display:flex; justify-content:space-between;">
+                    <span style="font-weight:700;">{{ day.day }}</span>
+                    {% if day.sheet.status == 'Completed' %}
+                        <span style="color:#4CAF50;"><i class="fa-solid fa-circle-check"></i></span>
+                    {% endif %}
+                </div>
+
+                {% if day.sheet.assigned_task %}
+                    <div class="task-preview"><i class="fa-solid fa-thumbtack"></i> Task</div>
+                {% endif %}
+
+                {% if day.display_work %}
+                    <div class="work-preview">
+                        {% if "Hidden" in day.display_work %}
+                            <i class="fa-solid fa-lock"></i> Logged
+                        {% else %}
+                            <i class="fa-solid fa-pen"></i> Logged
+                        {% endif %}
+                    </div>
+                {% endif %}
+            </div>
+        {% else %}
+            <div></div>
+        {% endif %}
+    {% endfor %}
+</div>
+
+<div id="trackModal" class="modal">
+    <div class="modal-content">
+        <span class="close-btn" onclick="closeModal()">&times;</span>
+        <h3 id="modalDate" style="margin-bottom:20px; font-family:'Outfit';"></h3>
+        
+        <form method="POST">
+            {% csrf_token %}
+            <input type="hidden" name="date" id="formDate">
+
+            <div style="background:#FFF3E0; padding:15px; border-radius:8px; margin-bottom:20px;">
+                <label style="font-weight:600; color:#EF6C00; display:block; margin-bottom:5px;">Assigned Tasks</label>
+                
+                <div id="taskDisplay" class="log-box" style="background: white;"></div>
+
+                {% if can_assign_task %}
+                    <textarea name="assigned_task" rows="2" class="form-control" placeholder="Add a new task assignment..."></textarea>
+                    <small style="color:#888;">* This will be appended to the list.</small>
+                {% endif %}
+            </div>
+
+            <div style="margin-bottom:20px;">
+                <label style="font-weight:600; color:#1565C0;">Work Log</label>
+                
+                <div id="workDisplay" class="log-box"></div>
+
+                {% if request.user == target_user %}
+                    <textarea name="work_done" rows="3" class="form-control" placeholder="Add new work entry..."></textarea>
+                    
+                    <label style="font-weight:600; margin-top:10px; display:block;">Status</label>
+                    <select name="status" id="statusInput" class="form-control">
+                        <option value="Pending">Pending</option>
+                        <option value="In Progress">In Progress</option>
+                        <option value="Completed">Completed</option>
+                    </select>
+                {% elif can_view_work %}
+                     <div>Status: <strong id="statusDisplay"></strong></div>
+                {% endif %}
+            </div>
+
+            <button type="submit" class="btn btn-primary w-100">Save Updates</button>
+        </form>
+    </div>
+</div>
+
+<script>
+    function openModal(dateStr, work, task, status) {
+        document.getElementById('trackModal').style.display = 'block';
+        document.getElementById('modalDate').innerText = new Date(dateStr).toDateString();
+        document.getElementById('formDate').value = dateStr;
+
+        // Display Existing Data (Read Only)
+        document.getElementById('workDisplay').innerText = work || "No work logged yet.";
+        document.getElementById('taskDisplay').innerText = task || "No tasks assigned.";
+
+        if(document.getElementById('statusInput')) document.getElementById('statusInput').value = status;
+        if(document.getElementById('statusDisplay')) document.getElementById('statusDisplay').innerText = status;
+    }
+    function closeModal() {
+        document.getElementById('trackModal').style.display = 'none';
+    }
+</script>
+{% endblock %}

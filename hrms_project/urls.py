@@ -32,4 +32,7 @@ urlpatterns = [
     # --- NEW FEATURES (Use dash_views prefix) ---
     path('hr/smtp/', dash_views.smtp_settings, name='smtp_settings'),
     path('notifications/', dash_views.notifications_view, name='notifications_view'),
+
+    # Add inside urlpatterns:
+    path('track-sheet/<int:user_id>/', dash_views.track_sheet, name='track_sheet'),
 ]

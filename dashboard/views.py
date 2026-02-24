@@ -3,6 +3,7 @@ from datetime import date, datetime, timedelta
 from decimal import Decimal 
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.decorators import login_required
+from django.views.decorators.http import require_POST
 from django.db import transaction 
 from django.contrib import messages
 from django.core.mail import send_mail, get_connection
@@ -78,35 +79,33 @@ def hr_dashboard(request):
     })
 
 @login_required
+@require_POST
 def approve_employee(request, user_id):
     if request.user.role != 'HR':
         return redirect('dashboard')
         
-    employee = get_object_or_404(User, id=user_id)
-    
-    if request.method == 'POST':
-        employee.designation = request.POST.get('designation')
-        employee.section = request.POST.get('section')
-        employee.role = request.POST.get('role')
-        
-        team_id = request.POST.get('team_id')
-        if team_id:
-            employee.team = Team.objects.get(id=team_id)
-            
-        reports_to_id = request.POST.get('reports_to')
-        if reports_to_id:
-            employee.reports_to = User.objects.get(id=reports_to_id)
-        else:
-            employee.reports_to = None
-            
-        employee.is_approved = True
-        employee.save()
-        
-        LeaveBalance.objects.get_or_create(user=employee)
-        
-        messages.success(request, f"{employee.username} onboarded successfully.")
-        return redirect('hr_dashboard')
-        
+    employee = get_object_or_404(User, id=user_id, company=request.user.company)
+
+    employee.designation = request.POST.get('designation')
+    employee.section = request.POST.get('section')
+    employee.role = request.POST.get('role')
+
+    team_id = request.POST.get('team_id')
+    if team_id:
+        employee.team = get_object_or_404(Team, id=team_id, company=request.user.company)
+
+    reports_to_id = request.POST.get('reports_to')
+    if reports_to_id:
+        employee.reports_to = get_object_or_404(User, id=reports_to_id, company=request.user.company)
+    else:
+        employee.reports_to = None
+
+    employee.is_approved = True
+    employee.save()
+
+    LeaveBalance.objects.get_or_create(user=employee)
+
+    messages.success(request, f"{employee.username} onboarded successfully.")
     return redirect('hr_dashboard')
 
 @login_required
@@ -128,7 +127,7 @@ def edit_employee(request, user_id):
         
         team_id = request.POST.get('team_id')
         if team_id:
-            employee.team = Team.objects.get(id=team_id)
+            employee.team = get_object_or_404(Team, id=team_id, company=request.user.company)
         else:
             employee.team = None
         
@@ -139,7 +138,7 @@ def edit_employee(request, user_id):
 
         reports_to_id = request.POST.get('reports_to')
         if reports_to_id:
-            employee.reports_to = User.objects.get(id=reports_to_id)
+            employee.reports_to = get_object_or_404(User, id=reports_to_id, company=request.user.company)
         else:
             employee.reports_to = None
             
@@ -154,6 +153,7 @@ def edit_employee(request, user_id):
     })
 
 @login_required
+@require_POST
 def delete_employee(request, user_id):
     if request.user.role != 'HR':
         messages.error(request, "Access Denied.")
@@ -312,6 +312,7 @@ def leave_requests_list(request):
     return render(request, 'dashboard/leave_requests_list.html', {'pending_leaves': my_approvals})
 
 @login_required
+@require_POST
 @transaction.atomic
 def action_leave(request, leave_id, action):
     leave = get_object_or_404(LeaveRequest, id=leave_id)
@@ -568,7 +569,7 @@ def track_sheet(request, user_id):
     
     # --- PERMISSIONS ---
     can_view_work = (viewer == target_user) or (target_user.reports_to == viewer) or (viewer.role == 'HR')
-    can_assign_task = True # Anyone can assign (as per previous request)
+    can_assign_task = (viewer.role == 'HR') or (target_user.reports_to == viewer)
 
     # --- DATE LOGIC ---
     today = date.today()
@@ -630,10 +631,9 @@ def track_sheet(request, user_id):
     })
 
 @login_required
+@require_POST
 def handle_track_actions(request, user_id):
-    """ Helper view to handle Add/Update/Delete of items via POST """
-    if request.method != 'POST':
-        return redirect('dashboard')
+    """Helper view to handle add/update items via POST only."""
 
     target_user = get_object_or_404(User, id=user_id)
     action_type = request.POST.get('action_type') # 'add_work', 'add_task', 'update_status'
@@ -651,22 +651,25 @@ def handle_track_actions(request, user_id):
 
     # 2. ADD ASSIGNED TASK
     elif action_type == 'add_task':
-        task_desc = request.POST.get('task_desc')
-        if task_desc:
-            TaskItem.objects.create(
-                track_sheet=sheet, 
-                task=task_desc, 
-                assigned_by=request.user, 
-                status='Pending'
-            )
-            # Notification
-            Notification.objects.create(
-                recipient=target_user,
-                sender=request.user,
-                title=f"New Task Assigned: {date_str}",
-                message=f"Task: {task_desc}\nBy: {request.user.username}"
-            )
-            messages.success(request, "Task assigned.")
+        can_assign = (request.user.role == 'HR') or (target_user.reports_to == request.user)
+        if not can_assign:
+            messages.error(request, 'Permission denied: you can only assign tasks to your direct reports.')
+        else:
+            task_desc = request.POST.get('task_desc')
+            if task_desc:
+                TaskItem.objects.create(
+                    track_sheet=sheet,
+                    task=task_desc,
+                    assigned_by=request.user,
+                    status='Pending'
+                )
+                Notification.objects.create(
+                    recipient=target_user,
+                    sender=request.user,
+                    title=f"New Task Assigned: {date_str}",
+                    message=f"Task: {task_desc}\nBy: {request.user.username}"
+                )
+                messages.success(request, 'Task assigned.')
 
     # 3. UPDATE STATUS (Work or Task)
     elif action_type == 'update_status':
@@ -680,10 +683,12 @@ def handle_track_actions(request, user_id):
             item.save()
         
         elif item_type == 'task':
-            # Both Assignee (target_user) and Assigner (request.user) can update status
             item = get_object_or_404(TaskItem, id=item_id, track_sheet=sheet)
-            item.status = new_status
-            item.save()
+            if request.user not in [target_user, item.assigned_by]:
+                messages.error(request, 'Permission denied for task status update.')
+            else:
+                item.status = new_status
+                item.save()
             
     # Redirect back to track sheet
     date_obj = datetime.strptime(date_str, "%Y-%m-%d").date()
@@ -691,6 +696,7 @@ def handle_track_actions(request, user_id):
 # ... existing imports ...
 
 @login_required
+@require_POST
 def delete_task_assignment(request, task_id):
     # FIXED: Get TaskItem instead of TrackSheet
     task_item = get_object_or_404(TaskItem, id=task_id)

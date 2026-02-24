@@ -219,12 +219,18 @@
             </div>
 
             <div class="action-area">
-                <a href="{% url 'action_leave' leave.id 'approve' %}" class="btn btn-approve">
-                    <i class="fa-solid fa-check"></i> Approve
-                </a>
-                <a href="{% url 'action_leave' leave.id 'reject' %}" class="btn btn-deny">
-                    <i class="fa-solid fa-xmark"></i> Deny
-                </a>
+                <form method="post" action="{% url 'action_leave' leave.id 'approve' %}" style="width:100%;">
+                    {% csrf_token %}
+                    <button type="submit" class="btn btn-approve" style="width:100%;">
+                        <i class="fa-solid fa-check"></i> Approve
+                    </button>
+                </form>
+                <form method="post" action="{% url 'action_leave' leave.id 'reject' %}" style="width:100%;">
+                    {% csrf_token %}
+                    <button type="submit" class="btn btn-deny" style="width:100%;">
+                        <i class="fa-solid fa-xmark"></i> Deny
+                    </button>
+                </form>
             </div>
         </div>
     {% empty %}
